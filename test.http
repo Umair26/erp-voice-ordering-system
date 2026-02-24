@@ -1,0 +1,68 @@
+### Health Check (no token needed)
+GET http://localhost:3000/
+
+###
+
+### Get all customers
+GET http://localhost:3000/api/customers
+Authorization: Bearer erp-secret-token-2024-umair
+
+###
+
+### Get single customer C001
+GET http://localhost:3000/api/customers/C001
+Authorization: Bearer erp-secret-token-2024-umair
+
+###
+
+### Get all items
+GET http://localhost:3000/api/items
+Authorization: Bearer erp-secret-token-2024-umair
+
+###
+
+### Get single item A007
+GET http://localhost:3000/api/items/A007
+Authorization: Bearer erp-secret-token-2024-umair
+
+###
+
+### Get all orders
+GET http://localhost:3000/api/orders
+Authorization: Bearer erp-secret-token-2024-umair
+
+###
+
+### Create a new order
+POST http://localhost:3000/api/create-order
+Authorization: Bearer erp-secret-token-2024-umair
+Content-Type: application/json
+
+{
+  "customer_id": "C001",
+  "customer_name": "Max Mustermann",
+  "items": [
+    { "article_number": "A001", "quantity": 2 },
+    { "article_number": "A007", "quantity": 1 },
+    { "article_number": "A004", "quantity": 1 }
+  ],
+  "created_via": "AI"
+}
+
+###
+
+### Test wrong token (should return 403)
+GET http://localhost:3000/api/customers
+Authorization: Bearer wrong-token
+
+###
+
+### Test unknown customer (should return order_created: false)
+POST http://localhost:3000/api/create-order
+Authorization: Bearer erp-secret-token-2024-umair
+Content-Type: application/json
+
+{
+  "customer_id": "C999",
+  "items": [{ "article_number": "A001", "quantity": 1 }]
+}

@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERP Mock Database — Visual Reference</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2236;
+    --border: #1e2d47;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --accent4: #f59e0b;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 40px 24px; position: relative; z-index: 1; }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 48px;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+
+  .header-left h1 {
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-left p {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 13px;
+    margin-top: 8px;
+    letter-spacing: 1px;
+  }
+
+  .token-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    min-width: 280px;
+  }
+
+  .token-box .label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .token-box .token-value {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent3);
+    background: rgba(16,185,129,0.1);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(16,185,129,0.2);
+    word-break: break-all;
+  }
+
+  .token-box .usage {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: border-color 0.2s;
+  }
+
+  .stat-card:hover { border-color: var(--accent); }
+
+  .stat-icon {
+    font-size: 28px;
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+  }
+
+  .stat-icon.blue { background: rgba(0,212,255,0.1); }
+  .stat-icon.purple { background: rgba(124,58,237,0.1); }
+  .stat-icon.green { background: rgba(16,185,129,0.1); }
+
+  .stat-info .number {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+
+  .stat-info .number.blue { color: var(--accent); }
+  .stat-info .number.purple { color: #a78bfa; }
+  .stat-info .number.green { color: var(--accent3); }
+
+  .stat-info .label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Sections */
+  .section { margin-bottom: 48px; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-header .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .section-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .section-header .count {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-left: auto;
+  }
+
+  /* Tables */
+  .table-wrapper {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead tr {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  thead th {
+    padding: 12px 16px;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    font-weight: 400;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(30,45,71,0.5);
+    transition: background 0.15s;
+  }
+
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+
+  tbody td {
+    padding: 12px 16px;
+    vertical-align: middle;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    font-family: var(--mono);
+  }
+
+  .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+
+  .badge.available { background: rgba(16,185,129,0.12); color: var(--accent3); border: 1px solid rgba(16,185,129,0.2); }
+  .badge.available::before { background: var(--accent3); }
+
+  .badge.out { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .badge.out::before { background: var(--red); }
+
+  .badge.confirmed { background: rgba(16,185,129,0.12); color: var(--accent3); border: 1px solid rgba(16,185,129,0.2); }
+  .badge.confirmed::before { background: var(--accent3); }
+
+  .badge.pending { background: rgba(245,158,11,0.12); color: var(--accent4); border: 1px solid rgba(245,158,11,0.2); }
+  .badge.pending::before { background: var(--accent4); }
+
+  .badge.cancelled { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .badge.cancelled::before { background: var(--red); }
+
+  .badge.de { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
+  .badge.de::before { display: none; }
+
+  .badge.en { background: rgba(124,58,237,0.1); color: #a78bfa; border: 1px solid rgba(124,58,237,0.2); }
+  .badge.en::before { display: none; }
+
+  .badge.ai { background: rgba(124,58,237,0.12); color: #a78bfa; border: 1px solid rgba(124,58,237,0.2); }
+  .badge.ai::before { display: none; }
+
+  .badge.website { background: rgba(0,212,255,0.12); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
+  .badge.website::before { display: none; }
+
+  .badge.mobile { background: rgba(16,185,129,0.12); color: var(--accent3); border: 1px solid rgba(16,185,129,0.2); }
+  .badge.mobile::before { display: none; }
+
+  /* ID pills */
+  .id-pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(0,212,255,0.08);
+    color: var(--accent);
+    border: 1px solid rgba(0,212,255,0.15);
+  }
+
+  .id-pill.purple { background: rgba(124,58,237,0.08); color: #a78bfa; border-color: rgba(124,58,237,0.2); }
+  .id-pill.green { background: rgba(16,185,129,0.08); color: var(--accent3); border-color: rgba(16,185,129,0.2); }
+
+  /* Article links */
+  .article-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .article-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(30,45,71,0.8);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  /* Price */
+  .price { color: var(--accent4); font-weight: 600; }
+
+  /* Relationship diagram */
+  .relationship-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 48px;
+  }
+
+  .rel-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 24px;
+  }
+
+  .rel-diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .rel-table {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    min-width: 160px;
+    text-align: center;
+  }
+
+  .rel-table.center-table { border-color: var(--accent); box-shadow: 0 0 20px rgba(0,212,255,0.1); }
+
+  .rel-table .table-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .rel-table .table-pk { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .rel-table .table-count { font-family: var(--mono); font-size: 11px; color: var(--accent3); margin-top: 6px; }
+
+  .rel-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px;
+  }
+
+  .rel-arrow .line { width: 60px; height: 1px; background: var(--border); position: relative; }
+  .rel-arrow .line::after { content: '▶'; position: absolute; right: -6px; top: -7px; font-size: 12px; color: var(--muted); }
+  .rel-arrow .label { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+  /* Endpoints */
+  .endpoints-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 12px;
+    margin-bottom: 48px;
+  }
+
+  .endpoint-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .method {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .method.get { background: rgba(16,185,129,0.15); color: var(--accent3); }
+  .method.post { background: rgba(245,158,11,0.15); color: var(--accent4); }
+
+  .endpoint-info .path { font-family: var(--mono); font-size: 12px; color: var(--text); }
+  .endpoint-info .desc { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  .auth-required {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent2);
+    background: rgba(124,58,237,0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-top: 4px;
+    display: inline-block;
+  }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 32px 0 16px;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 768px) {
+    .stats-bar { grid-template-columns: 1fr; }
+    header { flex-direction: column; }
+    .token-box { min-width: 100%; }
+    .rel-diagram { flex-direction: column; }
+    .rel-arrow .line { width: 1px; height: 40px; }
+    .rel-arrow .line::after { content: '▼'; right: -6px; bottom: -6px; top: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="header-left">
+      <h1>ERP Mock Database</h1>
+      <p>// VISUAL REFERENCE — V2.0 — ALL TABLES & RECORDS</p>
+    </div>
+    <div class="token-box">
+      <div class="label">🔑 API Authentication Token</div>
+      <div class="token-value">erp-secret-token-2024-umair</div>
+      <div class="usage">Authorization: Bearer erp-secret-token-2024-umair</div>
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-icon blue">👤</div>
+      <div class="stat-info">
+        <div class="number blue">19</div>
+        <div class="label">Customer Records</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon purple">📦</div>
+      <div class="stat-info">
+        <div class="number purple">21</div>
+        <div class="label">Item Records</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">🗂️</div>
+      <div class="stat-info">
+        <div class="number green">4</div>
+        <div class="label">Order Records</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Relationship Diagram -->
+  <div class="relationship-section">
+    <div class="rel-title">// TABLE RELATIONSHIPS</div>
+    <div class="rel-diagram">
+      <div class="rel-table">
+        <div class="table-name" style="color:#a78bfa">📦 Items</div>
+        <div class="table-pk">PK: article_number</div>
+        <div class="table-count">21 records</div>
+      </div>
+      <div class="rel-arrow">
+        <div class="line"></div>
+        <div class="label">article_number</div>
+      </div>
+      <div class="rel-table center-table">
+        <div class="table-name" style="color:var(--accent)">👤 Customer Record</div>
+        <div class="table-pk">PK: customer_id</div>
+        <div class="table-count">19 records — Central Table</div>
+      </div>
+      <div class="rel-arrow">
+        <div class="line"></div>
+        <div class="label">order_id</div>
+      </div>
+      <div class="rel-table">
+        <div class="table-name" style="color:var(--accent3)">🗂️ Order Data</div>
+        <div class="table-pk">PK: order_id</div>
+        <div class="table-count">4 records</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- API Endpoints -->
+  <div class="section">
+    <div class="section-header">
+      <div class="dot" style="background:#00d4ff"></div>
+      <h2>API Endpoints</h2>
+    </div>
+    <div class="endpoints-grid">
+      <div class="endpoint-card">
+        <span class="method get">GET</span>
+        <div class="endpoint-info">
+          <div class="path">/</div>
+          <div class="desc">Health check — API status</div>
+        </div>
+      </div>
+      <div class="endpoint-card">
+        <span class="method get">GET</span>
+        <div class="endpoint-info">
+          <div class="path">/api/customers</div>
+          <div class="desc">All 19 customer records</div>
+          <span class="auth-required">🔒 Bearer token required</span>
+        </div>
+      </div>
+      <div class="endpoint-card">
+        <span class="method get">GET</span>
+        <div class="endpoint-info">
+          <div class="path">/api/customers/:id</div>
+          <div class="desc">Single customer + linked orders & items</div>
+          <span class="auth-required">🔒 Bearer token required</span>
+        </div>
+      </div>
+      <div class="endpoint-card">
+        <span class="method get">GET</span>
+        <div class="endpoint-info">
+          <div class="path">/api/items</div>
+          <div class="desc">All 21 item records</div>
+          <span class="auth-required">🔒 Bearer token required</span>
+        </div>
+      </div>
+      <div class="endpoint-card">
+        <span class="method get">GET</span>
+        <div class="endpoint-info">
+          <div class="path">/api/items/:article_number</div>
+          <div class="desc">Single item by article number</div>
+          <span class="auth-required">🔒 Bearer token required</span>
+        </div>
+      </div>
+      <div class="endpoint-card">
+        <span class="method get">GET</span>
+        <div class="endpoint-info">
+          <div class="path">/api/orders</div>
+          <div class="desc">All order records</div>
+          <span class="auth-required">🔒 Bearer token required</span>
+        </div>
+      </div>
+      <div class="endpoint-card">
+        <span class="method get">GET</span>
+        <div class="endpoint-info">
+          <div class="path">/api/orders/:id</div>
+          <div class="desc">Single order + customer details</div>
+          <span class="auth-required">🔒 Bearer token required</span>
+        </div>
+      </div>
+      <div class="endpoint-card">
+        <span class="method post">POST</span>
+        <div class="endpoint-info">
+          <div class="path">/api/create-order</div>
+          <div class="desc">Create order — validates customer & items</div>
+          <span class="auth-required">🔒 Bearer token required</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOMERS TABLE -->
+  <div class="section">
+    <div class="section-header">
+      <div class="dot" style="background:#00d4ff"></div>
+      <h2 style="color:#00d4ff">Customer Records</h2>
+      <span class="count" style="background:rgba(0,212,255,0.1);color:#00d4ff">19 records</span>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>customer_id 🔑</th>
+            <th>customer_name</th>
+            <th>customer_email</th>
+            <th>language</th>
+            <th>article_numbers (linked)</th>
+            <th>order_ids (linked)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="id-pill">C001</span></td><td>Max Mustermann</td><td>max.mustermann@email.de</td><td><span class="badge de">DE</span></td><td><div class="article-tags"><span class="article-tag">A001</span><span class="article-tag">A003</span><span class="article-tag">A007</span></div></td><td><span class="article-tag">ORD-001</span> <span class="article-tag">ORD-002</span></td></tr>
+          <tr><td><span class="id-pill">C002</span></td><td>Anna Schmidt</td><td>anna.schmidt@email.de</td><td><span class="badge de">DE</span></td><td><div class="article-tags"><span class="article-tag">A002</span><span class="article-tag">A005</span></div></td><td><span class="article-tag">ORD-003</span></td></tr>
+          <tr><td><span class="id-pill">C003</span></td><td>Peter Müller</td><td>peter.mueller@email.de</td><td><span class="badge de">DE</span></td><td><div class="article-tags"><span class="article-tag">A001</span><span class="article-tag">A010</span></div></td><td><span class="article-tag">ORD-004</span></td></tr>
+          <tr><td><span class="id-pill">C004</span></td><td>Laura Fischer</td><td>laura.fischer@email.de</td><td><span class="badge de">DE</span></td><td><div class="article-tags"><span class="article-tag">A004</span><span class="article-tag">A006</span><span class="article-tag">A009</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C005</span></td><td>John Smith</td><td>john.smith@email.com</td><td><span class="badge en">EN</span></td><td><div class="article-tags"><span class="article-tag">A002</span><span class="article-tag">A008</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C006</span></td><td>Sarah Johnson</td><td>sarah.j@email.com</td><td><span class="badge en">EN</span></td><td><div class="article-tags"><span class="article-tag">A011</span><span class="article-tag">A013</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C007</span></td><td>Michael Brown</td><td>m.brown@email.com</td><td><span class="badge en">EN</span></td><td><div class="article-tags"><span class="article-tag">A003</span><span class="article-tag">A012</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C008</span></td><td>Emily Davis</td><td>emily.d@email.com</td><td><span class="badge en">EN</span></td><td><div class="article-tags"><span class="article-tag">A014</span><span class="article-tag">A015</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C009</span></td><td>Hans Weber</td><td>hans.weber@email.de</td><td><span class="badge de">DE</span></td><td><div class="article-tags"><span class="article-tag">A001</span><span class="article-tag">A016</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C010</span></td><td>Klaus Becker</td><td>k.becker@email.de</td><td><span class="badge de">DE</span></td><td><div class="article-tags"><span class="article-tag">A017</span><span class="article-tag">A018</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C011</span></td><td>Sophie Martin</td><td>sophie.m@email.com</td><td><span class="badge en">EN</span></td><td><div class="article-tags"><span class="article-tag">A005</span><span class="article-tag">A019</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C012</span></td><td>Thomas Schulz</td><td>t.schulz@email.de</td><td><span class="badge de">DE</span></td><td><div class="article-tags"><span class="article-tag">A002</span><span class="article-tag">A020</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C013</span></td><td>Julia Wagner</td><td>julia.w@email.de</td><td><span class="badge de">DE</span></td><td><div class="article-tags"><span class="article-tag">A021</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C014</span></td><td>David Wilson</td><td>d.wilson@email.com</td><td><span class="badge en">EN</span></td><td><div class="article-tags"><span class="article-tag">A007</span><span class="article-tag">A008</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C015</span></td><td>Maria Garcia</td><td>m.garcia@email.com</td><td><span class="badge en">EN</span></td><td><div class="article-tags"><span class="article-tag">A009</span><span class="article-tag">A010</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C016</span></td><td>Franz Hoffmann</td><td>f.hoffmann@email.de</td><td><span class="badge de">DE</span></td><td><div class="article-tags"><span class="article-tag">A011</span><span class="article-tag">A012</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C017</span></td><td>Lisa Schneider</td><td>l.schneider@email.de</td><td><span class="badge de">DE</span></td><td><div class="article-tags"><span class="article-tag">A013</span><span class="article-tag">A014</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C018</span></td><td>James Anderson</td><td>j.anderson@email.com</td><td><span class="badge en">EN</span></td><td><div class="article-tags"><span class="article-tag">A015</span><span class="article-tag">A016</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+          <tr><td><span class="id-pill">C019</span></td><td>Emma Thompson</td><td>e.thompson@email.com</td><td><span class="badge en">EN</span></td><td><div class="article-tags"><span class="article-tag">A017</span><span class="article-tag">A018</span></div></td><td><span style="color:var(--muted);font-size:11px">—</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ITEMS TABLE -->
+  <div class="section">
+    <div class="section-header">
+      <div class="dot" style="background:#a78bfa"></div>
+      <h2 style="color:#a78bfa">Items</h2>
+      <span class="count" style="background:rgba(124,58,237,0.1);color:#a78bfa">21 records</span>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>article_number 🔑</th>
+            <th>item_title (EN)</th>
+            <th>item_title_DE</th>
+            <th>availability_status</th>
+            <th>item_price</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="id-pill purple">A001</span></td><td>Industrial Pressure Valve 12mm</td><td>Industriedruckventil 12mm</td><td><span class="badge available">Available</span></td><td><span class="price">$45.99</span></td></tr>
+          <tr><td><span class="id-pill purple">A002</span></td><td>Steel Pipe Connector 1 inch</td><td>Stahlrohrverbinder 1 Zoll</td><td><span class="badge available">Available</span></td><td><span class="price">$12.50</span></td></tr>
+          <tr><td><span class="id-pill purple">A003</span></td><td>Heavy Duty Bolt Set M10 (50 pcs)</td><td>Schwerlastschraubenset M10</td><td><span class="badge available">Available</span></td><td><span class="price">$28.00</span></td></tr>
+          <tr><td><span class="id-pill purple">A004</span></td><td>Rubber Seal Ring 15mm</td><td>Gummidichtungsring 15mm</td><td><span class="badge out">Out of stock</span></td><td><span class="price">$3.75</span></td></tr>
+          <tr><td><span class="id-pill purple">A005</span></td><td>Hydraulic Pump Filter</td><td>Hydraulikpumpenfilter</td><td><span class="badge available">Available</span></td><td><span class="price">$89.00</span></td></tr>
+          <tr><td><span class="id-pill purple">A006</span></td><td>Aluminum Bracket 200x50mm</td><td>Aluminiumhalterung 200x50mm</td><td><span class="badge available">Available</span></td><td><span class="price">$19.99</span></td></tr>
+          <tr><td><span class="id-pill purple">A007</span></td><td>Electric Motor 0.5kW 230V</td><td>Elektromotor 0,5kW 230V</td><td><span class="badge available">Available</span></td><td><span class="price">$235.00</span></td></tr>
+          <tr><td><span class="id-pill purple">A008</span></td><td>Control Panel Switch 16A</td><td>Schalttafelschalter 16A</td><td><span class="badge out">Out of stock</span></td><td><span class="price">$15.20</span></td></tr>
+          <tr><td><span class="id-pill purple">A009</span></td><td>Conveyor Belt Segment 500mm</td><td>Förderbandsegment 500mm</td><td><span class="badge available">Available</span></td><td><span class="price">$67.50</span></td></tr>
+          <tr><td><span class="id-pill purple">A010</span></td><td>Gear Box Lubricant 5L</td><td>Getriebeöl 5L</td><td><span class="badge available">Available</span></td><td><span class="price">$34.00</span></td></tr>
+          <tr><td><span class="id-pill purple">A011</span></td><td>Safety Pressure Relief Valve</td><td>Sicherheitsdruckentlastungsventil</td><td><span class="badge available">Available</span></td><td><span class="price">$112.00</span></td></tr>
+          <tr><td><span class="id-pill purple">A012</span></td><td>Stainless Steel Flange DN50</td><td>Edelstahlflansch DN50</td><td><span class="badge available">Available</span></td><td><span class="price">$55.80</span></td></tr>
+          <tr><td><span class="id-pill purple">A013</span></td><td>Digital Flow Meter</td><td>Digitaler Durchflussmesser</td><td><span class="badge out">Out of stock</span></td><td><span class="price">$189.99</span></td></tr>
+          <tr><td><span class="id-pill purple">A014</span></td><td>Insulation Mat 1m x 2m</td><td>Isoliermatte 1m x 2m</td><td><span class="badge available">Available</span></td><td><span class="price">$22.40</span></td></tr>
+          <tr><td><span class="id-pill purple">A015</span></td><td>Cable Conduit 25mm 10m Roll</td><td>Kabelrohr 25mm 10m Rolle</td><td><span class="badge available">Available</span></td><td><span class="price">$18.60</span></td></tr>
+          <tr><td><span class="id-pill purple">A016</span></td><td>Terminal Block 12-way</td><td>Klemmleiste 12-polig</td><td><span class="badge available">Available</span></td><td><span class="price">$9.90</span></td></tr>
+          <tr><td><span class="id-pill purple">A017</span></td><td>Pneumatic Cylinder 80mm Stroke</td><td>Pneumatikzylinder 80mm Hub</td><td><span class="badge available">Available</span></td><td><span class="price">$148.00</span></td></tr>
+          <tr><td><span class="id-pill purple">A018</span></td><td>Air Filter Regulator 1/4 inch</td><td>Luftfilterregler 1/4 Zoll</td><td><span class="badge out">Out of stock</span></td><td><span class="price">$42.30</span></td></tr>
+          <tr><td><span class="id-pill purple">A019</span></td><td>Proximity Sensor NPN 10-30V</td><td>Näherungssensor NPN 10-30V</td><td><span class="badge available">Available</span></td><td><span class="price">$31.00</span></td></tr>
+          <tr><td><span class="id-pill purple">A020</span></td><td>PLC Communication Module</td><td>SPS-Kommunikationsmodul</td><td><span class="badge available">Available</span></td><td><span class="price">$310.00</span></td></tr>
+          <tr><td><span class="id-pill purple">A021</span></td><td>Vibration Damper Pad Set (4 pcs)</td><td>Schwingungsdämpferpad-Set</td><td><span class="badge available">Available</span></td><td><span class="price">$14.80</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ORDERS TABLE -->
+  <div class="section">
+    <div class="section-header">
+      <div class="dot" style="background:#10b981"></div>
+      <h2 style="color:#10b981">Order Data</h2>
+      <span class="count" style="background:rgba(16,185,129,0.1);color:#10b981">4 records</span>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>order_id 🔑</th>
+            <th>customer</th>
+            <th>order_status</th>
+            <th>total_price</th>
+            <th>created_via</th>
+            <th>order_date</th>
+            <th>order_summary</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="id-pill green">ORD-001</span></td>
+            <td><span class="id-pill">C001</span> Max Mustermann</td>
+            <td><span class="badge confirmed">Confirmed</span></td>
+            <td><span class="price">$319.97</span></td>
+            <td><span class="badge ai">AI</span></td>
+            <td>2024-01-15</td>
+            <td style="max-width:220px;white-space:normal;font-size:11px;color:var(--muted)">1x A001, 2x A003, 1x A007. Dispatched.</td>
+          </tr>
+          <tr>
+            <td><span class="id-pill green">ORD-002</span></td>
+            <td><span class="id-pill">C001</span> Max Mustermann</td>
+            <td><span class="badge pending">Pending</span></td>
+            <td><span class="price">$45.99</span></td>
+            <td><span class="badge ai">AI</span></td>
+            <td>2024-01-22</td>
+            <td style="max-width:220px;white-space:normal;font-size:11px;color:var(--muted)">1x A001. Awaiting warehouse confirmation.</td>
+          </tr>
+          <tr>
+            <td><span class="id-pill green">ORD-003</span></td>
+            <td><span class="id-pill">C002</span> Anna Schmidt</td>
+            <td><span class="badge confirmed">Confirmed</span></td>
+            <td><span class="price">$101.50</span></td>
+            <td><span class="badge website">Website</span></td>
+            <td>2024-01-18</td>
+            <td style="max-width:220px;white-space:normal;font-size:11px;color:var(--muted)">1x A005, 2x A002. Confirmed and in transit.</td>
+          </tr>
+          <tr>
+            <td><span class="id-pill green">ORD-004</span></td>
+            <td><span class="id-pill">C003</span> Peter Müller</td>
+            <td><span class="badge cancelled">Cancelled</span></td>
+            <td><span class="price" style="color:var(--muted)">$0.00</span></td>
+            <td><span class="badge mobile">Mobile App</span></td>
+            <td>2024-01-20</td>
+            <td style="max-width:220px;white-space:normal;font-size:11px;color:var(--muted)">A001 + A010 requested. Cancelled before processing.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    Mock ERP API v2.0 — Visual Reference — For Voice Order Bot Integration
+  </footer>
+
+</div>
+</body>
+</html>
