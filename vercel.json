@@ -2,14 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "server_v2.js",
+      "src": "server.js",
       "use": "@vercel/node"
     }
   ],
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/server_v2.js"
+      "destination": "/server.js"
     }
   ]
 }

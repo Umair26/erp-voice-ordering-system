@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -136,8 +137,13 @@ function generateOrderId() {
 // ROUTES
 // ─────────────────────────────────────────────
 
-// Health check (no auth needed)
+// Homepage — serves the visual database dashboard (no auth needed)
 app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, 'database_visual.html'));
+});
+
+// JSON status endpoint (for programmatic health checks)
+app.get("/status", (req, res) => {
   res.json({
     status: "Mock ERP API is running!",
     version: "2.0.0",
