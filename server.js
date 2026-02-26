@@ -160,11 +160,72 @@ app.get("/api/customers", authenticate, (req, res) => {
 
 // ── GET /api/customers/:id ───────────────────
 app.get("/api/customers/:id", authenticate, (req, res) => {
-  const customer = customers.find(c => c.customer_id === req.params.id);
-  if (!customer) return res.status(404).json({ error: "Customer not found." });
+  let id = req.params.id.trim();
+  let customer = null;
+
+  // ── Email passed as the :id param (Retell AI direct call) ──
+  if (id.includes("@")) {
+    customer = customers.find(c =>
+      c.customer_email.toLowerCase() === id.toLowerCase()
+    );
+
+  // ── Customer ID lookup ───────────────────────────────────────
+  } else {
+    if (!id.toUpperCase().startsWith("C")) {
+      id = "C" + id;
+    }
+    customer = customers.find(c => c.customer_id === id);
+  }
+
+  if (!customer) {
+    return res.status(404).json({ error: "Customer not found." });
+  }
+
   const customerOrders = orders.filter(o => o.customer_id === customer.customer_id);
   const customerItems = items.filter(i => customer.article_numbers.includes(i.article_number));
   res.json({ customer, linked_orders: customerOrders, linked_items: customerItems });
+});
+
+app.post("/api/customers/lookup", authenticate, (req, res) => {
+  const { customer_id, customer_email } = req.body;
+  let customer = null;
+
+  // ── Email takes priority if provided ────────────────────────
+  if (customer_email && customer_email.includes("@")) {
+    console.log(`🔍 Looking up by email: ${customer_email}`);
+    customer = customers.find(c =>
+      c.customer_email.toLowerCase() === customer_email.trim().toLowerCase()
+    );
+
+  // ── Fall back to customer_id ─────────────────────────────────
+  } else if (customer_id) {
+    let id = String(customer_id).trim();
+    if (!id.toUpperCase().startsWith("C")) {
+      id = "C" + id;
+    }
+    console.log(`🔍 Looking up by ID: ${id}`);
+    customer = customers.find(c => c.customer_id === id);
+
+  } else {
+    return res.status(400).json({ error: "Provide customer_id or customer_email." });
+  }
+
+  if (!customer) {
+    return res.status(404).json({
+      found: false,
+      error: "Customer not found."
+    });
+  }
+
+  const customerOrders = orders.filter(o => o.customer_id === customer.customer_id);
+  const customerItems = items.filter(i => customer.article_numbers.includes(i.article_number));
+
+  res.json({
+    found: true,
+    customer,
+    linked_orders: customerOrders,
+    linked_items: customerItems
+  });
 });
 
 // ── GET /api/items ───────────────────────────
