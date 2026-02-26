@@ -186,6 +186,45 @@ app.get("/api/customers/:id", authenticate, (req, res) => {
   res.json({ customer, linked_orders: customerOrders, linked_items: customerItems });
 });
 
+app.get("/api/customers/lookup", authenticate, (req, res) => {
+  const { customer_id, customer_email } = req.query;
+  let customer = null;
+
+  // ── Email takes priority if provided ────────
+  if (customer_email && customer_email.includes("@")) {
+    console.log(`🔍 Retell lookup by email: ${customer_email}`);
+    customer = customers.find(c =>
+      c.customer_email.toLowerCase() === customer_email.trim().toLowerCase()
+    );
+
+  // ── Fall back to customer_id ─────────────────
+  } else if (customer_id && customer_id !== "null" && customer_id !== "undefined") {
+    let id = String(customer_id).trim();
+    if (!id.toUpperCase().startsWith("C")) {
+      id = "C" + id;
+    }
+    console.log(`🔍 Retell lookup by ID: ${id}`);
+    customer = customers.find(c => c.customer_id === id);
+
+  } else {
+    return res.status(400).json({ error: "Provide customer_id or customer_email." });
+  }
+
+  if (!customer) {
+    return res.status(404).json({ found: false, error: "Customer not found." });
+  }
+
+  const customerOrders = orders.filter(o => o.customer_id === customer.customer_id);
+  const customerItems = items.filter(i => customer.article_numbers.includes(i.article_number));
+
+  res.json({
+    found: true,
+    customer,
+    linked_orders: customerOrders,
+    linked_items: customerItems
+  });
+});
+
 app.post("/api/customers/lookup", authenticate, (req, res) => {
   const { customer_id, customer_email } = req.body;
   let customer = null;
