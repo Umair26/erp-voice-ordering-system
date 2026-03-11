@@ -1,2 +1,7 @@
-.vercel
-.env*.local
+node_modules/
+venv/
+.env
+.env.local
+voice/vector-db/
+__pycache__/
+*.log

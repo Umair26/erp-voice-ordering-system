@@ -1,0 +1,23 @@
+[
+  { "article_number": "A001", "item_title": "Industrial Pressure Valve 12mm",    "item_title_DE": "Industriedruckventil 12mm",          "availability_status": "Available",    "item_price": 45.99  },
+  { "article_number": "A002", "item_title": "Steel Pipe Connector 1 inch",       "item_title_DE": "Stahlrohrverbinder 1 Zoll",          "availability_status": "Available",    "item_price": 12.50  },
+  { "article_number": "A003", "item_title": "Heavy Duty Bolt Set M10 (50 pcs)",  "item_title_DE": "Schwerlastschraubenset M10",         "availability_status": "Available",    "item_price": 28.00  },
+  { "article_number": "A004", "item_title": "Rubber Seal Ring 15mm",             "item_title_DE": "Gummidichtungsring 15mm",            "availability_status": "Out of stock", "item_price": 3.75   },
+  { "article_number": "A005", "item_title": "Hydraulic Pump Filter",             "item_title_DE": "Hydraulikpumpenfilter",              "availability_status": "Available",    "item_price": 89.00  },
+  { "article_number": "A006", "item_title": "Aluminum Bracket 200x50mm",        "item_title_DE": "Aluminiumhalterung 200x50mm",        "availability_status": "Available",    "item_price": 19.99  },
+  { "article_number": "A007", "item_title": "Electric Motor 0.5kW 230V",        "item_title_DE": "Elektromotor 0,5kW 230V",            "availability_status": "Available",    "item_price": 235.00 },
+  { "article_number": "A008", "item_title": "Control Panel Switch 16A",         "item_title_DE": "Schalttafelschalter 16A",            "availability_status": "Out of stock", "item_price": 15.20  },
+  { "article_number": "A009", "item_title": "Conveyor Belt Segment 500mm",      "item_title_DE": "Förderbandsegment 500mm",            "availability_status": "Available",    "item_price": 67.50  },
+  { "article_number": "A010", "item_title": "Gear Box Lubricant 5L",            "item_title_DE": "Getriebeöl 5L",                     "availability_status": "Available",    "item_price": 34.00  },
+  { "article_number": "A011", "item_title": "Safety Pressure Relief Valve",     "item_title_DE": "Sicherheitsdruckentlastungsventil",  "availability_status": "Available",    "item_price": 112.00 },
+  { "article_number": "A012", "item_title": "Stainless Steel Flange DN50",      "item_title_DE": "Edelstahlflansch DN50",              "availability_status": "Available",    "item_price": 55.80  },
+  { "article_number": "A013", "item_title": "Digital Flow Meter",               "item_title_DE": "Digitaler Durchflussmesser",         "availability_status": "Out of stock", "item_price": 189.99 },
+  { "article_number": "A014", "item_title": "Insulation Mat 1m x 2m",          "item_title_DE": "Isoliermatte 1m x 2m",              "availability_status": "Available",    "item_price": 22.40  },
+  { "article_number": "A015", "item_title": "Cable Conduit 25mm 10m Roll",      "item_title_DE": "Kabelrohr 25mm 10m Rolle",          "availability_status": "Available",    "item_price": 18.60  },
+  { "article_number": "A016", "item_title": "Terminal Block 12-way",            "item_title_DE": "Klemmleiste 12-polig",               "availability_status": "Available",    "item_price": 9.90   },
+  { "article_number": "A017", "item_title": "Pneumatic Cylinder 80mm Stroke",   "item_title_DE": "Pneumatikzylinder 80mm Hub",         "availability_status": "Available",    "item_price": 148.00 },
+  { "article_number": "A018", "item_title": "Air Filter Regulator 1/4 inch",    "item_title_DE": "Luftfilterregler 1/4 Zoll",         "availability_status": "Out of stock", "item_price": 42.30  },
+  { "article_number": "A019", "item_title": "Proximity Sensor NPN 10-30V",      "item_title_DE": "Näherungssensor NPN 10-30V",         "availability_status": "Available",    "item_price": 31.00  },
+  { "article_number": "A020", "item_title": "PLC Communication Module",         "item_title_DE": "SPS-Kommunikationsmodul",            "availability_status": "Available",    "item_price": 310.00 },
+  { "article_number": "A021", "item_title": "Vibration Damper Pad Set (4 pcs)", "item_title_DE": "Schwingungsdämpferpad-Set",          "availability_status": "Available",    "item_price": 14.80  }
+]
