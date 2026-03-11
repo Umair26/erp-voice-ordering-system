@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ERP Voice Tester</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://sdk.twilio.com/js/client/v1.14/twilio.js"></script>
+<script src="/twilio-sdk/twilio.min.js"></script>
 <style>
   :root {
     --bg: #080c14;
@@ -600,7 +600,7 @@
   }
 
   // ── Connect Twilio Device ──
-  function connectSDK() {
+  async function connectSDK() {
     const token = document.getElementById('tokenInput').value.trim();
     if (!token) {
       log('⚠ Paste your Access Token first', 'warn');
@@ -611,13 +611,14 @@
     document.getElementById('connectBtn').disabled = true;
 
     try {
+      // SDK v2.x API
       device = new Twilio.Device(token, {
         codecPreferences: ['opus', 'pcmu'],
-        fakeLocalDTMF: true,
-        enableRingingState: true,
+        logLevel: 1,
       });
 
-      device.on('ready', () => {
+      // v2.x uses 'registered' instead of 'ready'
+      device.on('registered', () => {
         log('✔ SDK connected — ready to call', 'success');
         setStatus('ready', 'Ready', 'SDK connected. Enter your Twilio number and call.');
         document.getElementById('callBtn').disabled = false;
@@ -627,46 +628,61 @@
       device.on('error', (err) => {
         log(`✖ SDK error: ${err.message}`, 'error');
         setStatus('error', 'Error', err.message);
+        document.getElementById('connectBtn').disabled = false;
+        document.getElementById('connectBtn').textContent = '⚡ CONNECT TWILIO SDK';
       });
 
-      device.on('connect', (conn) => {
-        activeCall = conn;
-        log('📞 Call connected', 'success');
-        setStatus('connected', 'In Call', 'Speak now — your mic is live', true);
-        startTimer();
-        document.getElementById('hangupBtn').disabled = false;
-        document.getElementById('muteBtn').disabled = false;
-        document.getElementById('callBtn').disabled = true;
+      // v2.x uses 'accept' on the call object
+      device.on('incoming', (call) => {
+        log('📲 Incoming call', 'info');
+        call.accept();
+        setupCallHandlers(call);
       });
 
-      device.on('disconnect', () => {
-        activeCall = null;
-        log('📴 Call ended', 'warn');
-        setStatus('ready', 'Call ended', 'SDK still connected — ready for next call');
-        stopTimer();
-        document.getElementById('hangupBtn').disabled = true;
-        document.getElementById('muteBtn').disabled = true;
-        document.getElementById('callBtn').disabled = false;
-        isMuted = false;
-        document.getElementById('muteBtn').classList.remove('muted');
-        document.getElementById('muteBtn').textContent = '🎤 MUTE MICROPHONE';
-        dialBuffer = '';
-        document.getElementById('dialDisplay').textContent = '—';
-      });
-
-      device.on('incoming', (conn) => {
-        log('📲 Incoming call received', 'info');
-        conn.accept();
-      });
+      // Register the device
+      await device.register();
 
     } catch (err) {
       log(`✖ Failed to init SDK: ${err.message}`, 'error');
+      console.error(err);
       document.getElementById('connectBtn').disabled = false;
     }
   }
 
+  function setupCallHandlers(call) {
+    activeCall = call;
+
+    call.on('accept', () => {
+      log('📞 Call connected', 'success');
+      setStatus('connected', 'In Call', 'Speak now — your mic is live', true);
+      startTimer();
+      document.getElementById('hangupBtn').disabled = false;
+      document.getElementById('muteBtn').disabled = false;
+      document.getElementById('callBtn').disabled = true;
+    });
+
+    call.on('disconnect', () => {
+      activeCall = null;
+      log('📴 Call ended', 'warn');
+      setStatus('ready', 'Call ended', 'SDK still connected — ready for next call');
+      stopTimer();
+      document.getElementById('hangupBtn').disabled = true;
+      document.getElementById('muteBtn').disabled = true;
+      document.getElementById('callBtn').disabled = false;
+      isMuted = false;
+      document.getElementById('muteBtn').classList.remove('muted');
+      document.getElementById('muteBtn').textContent = '🎤 MUTE MICROPHONE';
+      dialBuffer = '';
+      document.getElementById('dialDisplay').textContent = '—';
+    });
+
+    call.on('error', (err) => {
+      log(`✖ Call error: ${err.message}`, 'error');
+    });
+  }
+
   // ── Make Call ──
-  function makeCall() {
+  async function makeCall() {
     if (!device) { log('⚠ Connect SDK first', 'warn'); return; }
     const to = document.getElementById('toNumber').value.trim();
     if (!to) { log('⚠ Enter your Twilio phone number', 'warn'); return; }
@@ -677,16 +693,19 @@
     document.getElementById('dialDisplay').textContent = '—';
 
     try {
-      device.connect({ To: to });
+      const call = await device.connect({ params: { To: to } });
+      setupCallHandlers(call);
     } catch (err) {
       log(`✖ Call failed: ${err.message}`, 'error');
+      console.error(err);
       setStatus('ready', 'Ready', 'Call failed — check your number and token');
     }
   }
 
   // ── Hang Up ──
   function hangUp() {
-    if (device) device.disconnectAll();
+    if (activeCall) activeCall.disconnect();
+    else if (device) device.disconnectAll();
     log('📵 You ended the call', 'warn');
   }
 

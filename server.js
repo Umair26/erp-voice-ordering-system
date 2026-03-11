@@ -11,6 +11,9 @@ const VoiceGrant = AccessToken.VoiceGrant;
 
 app.use(express.json());
 app.use(express.static('public'));
+app.use('/twilio-sdk', express.static(         // ← add this
+  path.join(__dirname, 'node_modules/@twilio/voice-sdk/dist')
+));
 
 // ─────────────────────────────────────────────
 // AUTH
