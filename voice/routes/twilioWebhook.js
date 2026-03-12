@@ -5,7 +5,7 @@ router.post('/', (req, res) => {
   const domain = process.env.DOMAIN; // bare domain, no https://
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say>Welcome to the ordering system. Please state your customer ID and what you need.</Say>
+  <Say>Hi there, tell me your customer ID to proceed.</Say>
   <Connect>
     <Stream url="wss://${domain}/audio-stream"/>
   </Connect>

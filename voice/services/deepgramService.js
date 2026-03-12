@@ -13,7 +13,7 @@ function startDeepgramStream(onTranscript) {
     sample_rate: 8000,
     punctuate: true,
     interim_results: true,
-    endpointing: 1000,
+    endpointing: 15000,  // 15 seconds of silence before closing stream (allows TTS response + customer thinking time)
   });
 
   live.on(LiveTranscriptionEvents.Open, () => {
