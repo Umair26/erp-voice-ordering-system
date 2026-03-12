@@ -1,6 +1,7 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 
 const { createClient, LiveTranscriptionEvents } = require('@deepgram/sdk');
+const https = require('https');
 
 function startDeepgramStream(onTranscript) {
   const deepgram = createClient(process.env.DEEPGRAM_API_KEY);
@@ -41,4 +42,49 @@ function startDeepgramStream(onTranscript) {
   return live;
 }
 
-module.exports = { startDeepgramStream };
+// Text-to-speech using Deepgram REST API
+async function synthesizeText(text) {
+  return new Promise((resolve, reject) => {
+    const apiKey = process.env.DEEPGRAM_API_KEY;
+    if (!apiKey) {
+      return reject(new Error('DEEPGRAM_API_KEY not set'));
+    }
+
+    const options = {
+      hostname: 'api.deepgram.com',
+      port: 443,
+      path: '/v1/speak?model=aura-asteria-en&encoding=mulaw&sample_rate=8000',
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(JSON.stringify({ text })),
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = Buffer.alloc(0);
+
+      res.on('data', (chunk) => {
+        data = Buffer.concat([data, chunk]);
+      });
+
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          resolve(data);
+        } else {
+          reject(new Error(`Deepgram TTS failed: ${res.statusCode}`));
+        }
+      });
+    });
+
+    req.on('error', (e) => {
+      reject(new Error(`Deepgram TTS request failed: ${e.message}`));
+    });
+
+    req.write(JSON.stringify({ text }));
+    req.end();
+  });
+}
+
+module.exports = { startDeepgramStream, synthesizeText };

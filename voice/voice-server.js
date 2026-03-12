@@ -4,7 +4,7 @@ const express = require('express');
 const { WebSocketServer } = require('ws');
 const twilio = require('twilio');
 const twilioRoute = require('./routes/twilioWebhook');
-const { startDeepgramStream } = require('./services/deepgramService');
+const { startDeepgramStream, synthesizeText } = require('./services/deepgramService');
 const { searchProduct } = require('./services/semanticSearch');
 const { lookupCustomer, createOrder } = require('./services/erpService');
 const { newCallState, updateState } = require('./services/callState');
@@ -27,26 +27,34 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', port: PORT });
 });
 
-// Helper function to send voice response via Twilio API
-async function sendVoiceResponse(callSid, text) {
+// Helper function to send voice response via TTS and WebSocket
+async function sendVoiceResponse(ws, text) {
   try {
-    // Send Say command but keep stream open with a Gather for continued listening
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say>${escapeXml(text)}</Say>
-  <Gather input="speech" timeout="30" speechTimeout="auto" numDigits="0">
-    <Pause length="1"/>
-  </Gather>
-</Response>`;
+    console.log(`🎤 Synthesizing: "${text}"`);
+    const audioBuffer = await synthesizeText(text);
 
-    await twilioClient.calls(callSid).update({ twiml });
-    console.log(`📞 Sent to Twilio: "${text}"`);
+    // Convert audio buffer to base64 and send through WebSocket as media events
+    // Split into chunks matching Twilio's expected size (160 bytes = 20ms at 8kHz)
+    const chunkSize = 160;
+    for (let i = 0; i < audioBuffer.length; i += chunkSize) {
+      const chunk = audioBuffer.slice(i, Math.min(i + chunkSize, audioBuffer.length));
+      const mediaEvent = {
+        event: 'media',
+        media: {
+          payload: chunk.toString('base64'),
+        },
+      };
+      ws.send(JSON.stringify(mediaEvent));
+      // Small delay between chunks to avoid overwhelming the connection
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    console.log(`📞 Sent voice response to caller: "${text}"`);
   } catch (err) {
-    console.error('❌ Failed to send response via Twilio:', err.message);
+    console.error('❌ Failed to send voice response:', err.message);
   }
 }
 
-// Helper function to escape XML special characters
+// Helper function to escape XML special characters (kept for reference if needed)
 function escapeXml(unsafe) {
   return unsafe
     .replace(/&/g, '&amp;')
@@ -69,7 +77,6 @@ wss.on('connection', (ws) => {
 
   const state = newCallState();
   let dgStream = null;
-  let callSid = null;  // Store CallSid for Twilio API calls
 
   // Start Deepgram stream — handle failure gracefully
   try {
@@ -80,15 +87,15 @@ wss.on('connection', (ws) => {
 
       try {
         const response = await updateState(state, transcript);
-        if (response && callSid) {
-          // Send response via Twilio REST API instead of WebSocket
-          await sendVoiceResponse(callSid, response);
+        if (response && ws && ws.readyState === 1) {
+          // Send response via TTS and WebSocket media stream
+          await sendVoiceResponse(ws, response);
         }
       } catch (err) {
         console.error('❌ Error in updateState:', err.message);
-        // Send error message to caller via Twilio API
-        if (callSid) {
-          await sendVoiceResponse(callSid, 'There was an error processing your request. Please try again.');
+        // Send error message via TTS
+        if (ws && ws.readyState === 1) {
+          await sendVoiceResponse(ws, 'There was an error processing your request. Please try again.');
         }
       }
     });
@@ -105,9 +112,7 @@ wss.on('connection', (ws) => {
       }
 
       if (data.event === 'start') {
-        const startData = data.start || {};
-        callSid = startData.callSid;  // Capture CallSid for API calls
-        console.log(`📡 Stream started — CallSid: ${callSid}`);
+        console.log(`📡 Stream started — CallSid: ${data.start?.callSid}`);
       }
 
       if (data.event === 'media') {
