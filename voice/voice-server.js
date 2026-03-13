@@ -1,17 +1,14 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 
 const express = require('express');
 const { WebSocketServer } = require('ws');
 const twilio = require('twilio');
 const twilioRoute = require('./routes/twilioWebhook');
-const { startDeepgramStream, synthesizeText } = require('./services/deepgramService');
-const { searchProduct } = require('./services/semanticSearch');
-const { lookupCustomer, createOrder } = require('./services/erpService');
+const { startDeepgramStream } = require('./services/deepgramService');
 const { newCallState, updateState } = require('./services/callState');
 
 const PORT = process.env.VOICE_PORT || 4000;
 
-// Initialize Twilio client
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
@@ -22,63 +19,27 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use('/incoming-call', twilioRoute);
 
-// Health check — useful for Railway / ngrok to confirm server is up
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', port: PORT });
-});
+app.get('/health', (req, res) => res.json({ status: 'ok', port: PORT }));
 
-// Helper function to send voice response via TTS and WebSocket
-async function sendVoiceResponse(ws, text) {
+const callStates = new Map();
+
+async function sendVoiceResponse(text, callSid) {
   try {
-    console.log(`🎤 Synthesizing: "${text}"`);
-    const audioBuffer = await synthesizeText(text);
-
-    if (!audioBuffer || audioBuffer.length === 0) {
-      console.error('❌ TTS returned empty buffer');
-      return;
-    }
-
-    console.log(`✅ TTS returned ${audioBuffer.length} bytes of audio`);
-
-    // Convert audio buffer to base64 and send through WebSocket as media events
-    // Split into chunks matching Twilio's expected size (160 bytes = 20ms at 8kHz)
-    const chunkSize = 160;
-    let chunkCount = 0;
-    for (let i = 0; i < audioBuffer.length; i += chunkSize) {
-      const chunk = audioBuffer.slice(i, Math.min(i + chunkSize, audioBuffer.length));
-      const mediaEvent = {
-        event: 'media',
-        media: {
-          payload: chunk.toString('base64'),
-        },
-      };
-      if (ws && ws.readyState === 1) {
-        ws.send(JSON.stringify(mediaEvent));
-        chunkCount++;
-      }
-      // Small delay between chunks to avoid overwhelming the connection
-      await new Promise(resolve => setTimeout(resolve, 10));
-    }
-    console.log(`📞 Sent voice response to caller: "${text}" (${chunkCount} audio chunks)`);
+    console.log(`🔊 Response: "${text}"`);
+    const domain = process.env.DOMAIN;
+    await twilioClient.calls(callSid).update({
+      twiml: `<Response><Say>${text}</Say><Connect><Stream url="wss://${domain}/audio-stream"/></Connect></Response>`
+    });
+    console.log('✅ TwiML sent to caller');
   } catch (err) {
-    console.error('❌ Failed to send voice response:', err.message);
+    console.error('❌ Failed to send TwiML:', err.message);
   }
-}
-
-// Helper function to escape XML special characters (kept for reference if needed)
-function escapeXml(unsafe) {
-  return unsafe
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }
 
 const server = app.listen(PORT, () => {
   console.log(`✅ Voice server running on port ${PORT}`);
   console.log(`📞 Twilio webhook → POST /incoming-call`);
-  console.log(`🔊 WebSocket stream → wss://YOUR_DOMAIN/audio-stream`);
+  console.log(`🔊 WebSocket stream → wss://${process.env.DOMAIN}/audio-stream`);
 });
 
 const wss = new WebSocketServer({ server, path: '/audio-stream' });
@@ -86,35 +47,41 @@ const wss = new WebSocketServer({ server, path: '/audio-stream' });
 wss.on('connection', (ws) => {
   console.log('📲 New call connected via WebSocket');
 
-  const state = newCallState();
   let dgStream = null;
+  let callSid = null;
+  let processing = false;
+  let state = null;
+  let isReconnect = false;
 
-  // Start Deepgram stream — handle failure gracefully
-  try {
-    dgStream = startDeepgramStream(async (transcript) => {
-      if (!transcript || !transcript.trim()) return;
+  function startNewDeepgramStream() {
+    try {
+      dgStream = startDeepgramStream(async (transcript) => {
+        if (!transcript || !transcript.trim()) return;
+        if (processing) return;
+        processing = true;
 
-      console.log(`🎤 Transcript: "${transcript}"`);
+        console.log(`🎤 Transcript: "${transcript}"`);
 
-      try {
-        const response = await updateState(state, transcript);
-        if (response && ws && ws.readyState === 1) {
-          // Send response via TTS and WebSocket media stream
-          await sendVoiceResponse(ws, response);
+        try {
+          const response = await updateState(state, transcript);
+          if (response && callSid) {
+            await sendVoiceResponse(response, callSid);
+          }
+        } catch (err) {
+          console.error('❌ Error in updateState:', err.message);
+          if (callSid) await sendVoiceResponse('There was an error. Please try again.', callSid);
         }
-      } catch (err) {
-        console.error('❌ Error in updateState:', err.message);
-        // Send error message via TTS
-        if (ws && ws.readyState === 1) {
-          await sendVoiceResponse(ws, 'There was an error processing your request. Please try again.');
-        }
-      }
-    });
-  } catch (err) {
-    console.error('❌ Failed to start Deepgram stream:', err.message);
+
+        processing = false;
+      });
+    } catch (err) {
+      console.error('❌ Failed to start Deepgram stream:', err.message);
+    }
   }
 
-  ws.on('message', (msg) => {
+  startNewDeepgramStream();
+
+  ws.on('message', async (msg) => {
     try {
       const data = JSON.parse(msg);
 
@@ -123,19 +90,32 @@ wss.on('connection', (ws) => {
       }
 
       if (data.event === 'start') {
-        console.log(`📡 Stream started — CallSid: ${data.start?.callSid}`);
+        callSid = data.start?.callSid;
+
+        if (!callStates.has(callSid)) {
+          callStates.set(callSid, newCallState());
+          isReconnect = false;
+          console.log(`📡 New call — CallSid: ${callSid}`);
+        } else {
+          isReconnect = true;
+          console.log(`📡 Reconnected — CallSid: ${callSid} | State: ${callStates.get(callSid).state}`);
+        }
+
+        state = callStates.get(callSid);
+
+        // No re-prompt needed — Twilio already played the last response
       }
 
       if (data.event === 'media') {
-        if (!dgStream) return;
+        if (!dgStream || !state) return;
         const audio = Buffer.from(data.media.payload, 'base64');
-        console.log('🔊 Audio chunk received, size:', audio.length);
         dgStream.send(audio);
       }
 
       if (data.event === 'stop') {
         console.log('🛑 Twilio stream stopped');
       }
+
     } catch (err) {
       console.error('❌ Error parsing WebSocket message:', err.message);
     }
@@ -143,17 +123,13 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     console.log('📴 Call ended — WebSocket closed');
-    if (dgStream) {
-      try { dgStream.finish(); } catch (_) {}
+    if (dgStream) { try { dgStream.finish(); } catch (_) {} }
+    if (callSid && state && state.state === 'DONE') {
+      callStates.delete(callSid);
     }
   });
 
-  ws.on('error', (err) => {
-    console.error('❌ WebSocket error:', err.message);
-  });
+  ws.on('error', (err) => console.error('❌ WebSocket error:', err.message));
 });
 
-// Catch unhandled server errors — don't crash the process
-server.on('error', (err) => {
-  console.error('❌ Server error:', err.message);
-});
+server.on('error', (err) => console.error('❌ Server error:', err.message));

@@ -14,20 +14,37 @@ function startDeepgramStream(onTranscript) {
     sample_rate: 8000,
     punctuate: true,
     interim_results: true,
-    endpointing: 15000,  // 15 seconds of silence before closing stream (allows TTS response + customer thinking time)
+    endpointing: 500,   // Short endpointing — we handle debouncing ourselves
   });
+
+  let accumulatedText = '';
+  let silenceTimer = null;
+  const SILENCE_DELAY = 3500; // Wait 2s after last is_final before processing
 
   live.on(LiveTranscriptionEvents.Open, () => {
     console.log('🎙️  Deepgram connection open');
   });
 
   live.on(LiveTranscriptionEvents.Transcript, (data) => {
-    console.log('📦 Raw:', JSON.stringify(data).slice(0, 200));
     const alt = data?.channel?.alternatives?.[0];
     const text = alt?.transcript?.trim();
-    if (text && data.is_final) {
-      console.log(`📝 Final transcript: "${text}"`);
-      onTranscript(text);
+
+    if (!text) return;
+
+    if (data.is_final) {
+      // Accumulate final chunks
+      accumulatedText = (accumulatedText + ' ' + text).trim();
+      console.log(`📝 Accumulated: "${accumulatedText}"`);
+
+      // Reset silence timer — wait for more speech
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        if (accumulatedText) {
+          console.log(`✅ Final input: "${accumulatedText}"`);
+          onTranscript(accumulatedText);
+          accumulatedText = '';
+        }
+      }, SILENCE_DELAY);
     }
   });
 
@@ -37,6 +54,7 @@ function startDeepgramStream(onTranscript) {
 
   live.on(LiveTranscriptionEvents.Close, () => {
     console.log('🔌 Deepgram connection closed');
+    if (silenceTimer) clearTimeout(silenceTimer);
   });
 
   return live;
@@ -46,10 +64,7 @@ function startDeepgramStream(onTranscript) {
 async function synthesizeText(text) {
   return new Promise((resolve, reject) => {
     const apiKey = process.env.DEEPGRAM_API_KEY;
-    if (!apiKey) {
-      console.error('❌ DEEPGRAM_API_KEY not set');
-      return reject(new Error('DEEPGRAM_API_KEY not set'));
-    }
+    if (!apiKey) return reject(new Error('DEEPGRAM_API_KEY not set'));
 
     const options = {
       hostname: 'api.deepgram.com',
@@ -63,39 +78,17 @@ async function synthesizeText(text) {
       },
     };
 
-    console.log('📡 Calling Deepgram TTS API...');
     const req = https.request(options, (res) => {
-      console.log(`📡 TTS API Response Status: ${res.statusCode}`);
       let data = Buffer.alloc(0);
-
-      res.on('data', (chunk) => {
-        console.log(`📥 TTS API returned data chunk: ${chunk.length} bytes`);
-        data = Buffer.concat([data, chunk]);
-      });
-
+      res.on('data', (chunk) => { data = Buffer.concat([data, chunk]); });
       res.on('end', () => {
-        console.log(`📦 TTS API complete - Total audio: ${data.length} bytes`);
-        if (res.statusCode === 200) {
-          resolve(data);
-        } else {
-          console.error(`❌ TTS API error - Status: ${res.statusCode}`);
-          reject(new Error(`Deepgram TTS failed: ${res.statusCode}`));
-        }
+        if (res.statusCode === 200) resolve(data);
+        else reject(new Error(`Deepgram TTS failed: ${res.statusCode}`));
       });
     });
 
-    req.on('error', (e) => {
-      console.error(`❌ TTS API request failed: ${e.message}`);
-      reject(new Error(`Deepgram TTS request failed: ${e.message}`));
-    });
-
-    req.setTimeout(10000, () => {
-      console.error('❌ TTS API request timeout');
-      req.destroy();
-      reject(new Error('Deepgram TTS request timeout'));
-    });
-
-    console.log(`📨 Sending TTS request: "${text.slice(0, 50)}..."`);
+    req.on('error', (e) => reject(new Error(`TTS request failed: ${e.message}`)));
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error('TTS timeout')); });
     req.write(JSON.stringify({ text }));
     req.end();
   });

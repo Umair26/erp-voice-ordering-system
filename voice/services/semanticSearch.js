@@ -1,12 +1,80 @@
-const { execSync } = require('child_process');
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
+const axios = require('axios');
 
-function searchProduct(query) {
-  // Call the Python search script
-  const result = execSync(
-    `python3 scripts/search.py "${query.replace(/"/g, '')}"`
-  ).toString();
+const ERP_URL = process.env.ERP_URL || 'http://localhost:3000';
+const API_TOKEN = process.env.API_TOKEN;
+const headers = { Authorization: `Bearer ${API_TOKEN}` };
 
-  return JSON.parse(result); // { article_number, item_title, score }
+function wordsToDigits(text) {
+  return text
+    .replace(/\bzero\b/gi, '0').replace(/\bone\b/gi, '1')
+    .replace(/\btwo\b/gi, '2').replace(/\bthree\b/gi, '3')
+    .replace(/\bfour\b/gi, '4').replace(/\bfive\b/gi, '5')
+    .replace(/\bsix\b/gi, '6').replace(/\bseven\b/gi, '7')
+    .replace(/\beight\b/gi, '8').replace(/\bnine\b/gi, '9');
+}
+
+function extractArticleNumber(text) {
+  // "eight zero zero six" → Deepgram mishears "A" as "eight"
+  // Fix: treat "eight" followed by 3 digits (spoken) as letter A
+  let converted = text
+    .replace(/\beight\s+(zero|one|two|three|four|five|six|seven|eight|nine)\s+(zero|one|two|three|four|five|six|seven|eight|nine)\s+(zero|one|two|three|four|five|six|seven|eight|nine)\b/gi, (match) => {
+      return 'A ' + match.replace(/^eight\s+/, '');
+    });
+
+  converted = wordsToDigits(converted);
+  console.log(`🔄 Article search in: "${converted}"`);
+
+  // Match: A006, A 0 0 6, a006
+  const match = converted.match(/\b([A-Za-z])\s*(\d)\s*(\d)\s*(\d)\b/);
+  if (match) {
+    return `${match[1].toUpperCase()}${match[2]}${match[3]}${match[4]}`;
+  }
+  return null;
+}
+
+async function searchProduct(query) {
+  console.log(`🔍 searchProduct: "${query}"`);
+
+  const articleNumber = extractArticleNumber(query);
+  if (articleNumber) {
+    console.log(`🎯 Trying article number: ${articleNumber}`);
+    try {
+      const res = await axios.get(`${ERP_URL}/api/item`, {
+        headers, params: { article_number: articleNumber }
+      });
+      if (res.data && res.data.found !== false) {
+        console.log(`✅ Found by article: ${res.data.item_title}`);
+        return { ...res.data, found: true };
+      }
+    } catch (e) {
+      console.error(`❌ Article lookup failed:`, e.response?.data || e.message);
+    }
+  }
+
+  const cleaned = wordsToDigits(query)
+    .toLowerCase()
+    .replace(/\b(yeah|i want|i need|get me|order|item|number|article|please|it's|its)\b/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  console.log(`🔤 Keyword search: "${cleaned}"`);
+  if (cleaned.length > 2) {
+    try {
+      const res = await axios.get(`${ERP_URL}/api/item`, {
+        headers, params: { search: cleaned }
+      });
+      if (res.data && res.data.found !== false) {
+        console.log(`✅ Found by search: ${res.data.item_title}`);
+        return { ...res.data, found: true };
+      }
+    } catch (e) {
+      console.error(`❌ Search failed:`, e.response?.data || e.message);
+    }
+  }
+
+  return { found: false };
 }
 
 module.exports = { searchProduct };
