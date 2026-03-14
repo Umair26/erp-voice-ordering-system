@@ -19,7 +19,7 @@ function startDeepgramStream(onTranscript) {
 
   let accumulatedText = '';
   let silenceTimer = null;
-  const SILENCE_DELAY = 5000; // Wait 2s after last is_final before processing
+  const SILENCE_DELAY = 6000; // Wait 2s after last is_final before processing
 
   live.on(LiveTranscriptionEvents.Open, () => {
     console.log('🎙️  Deepgram connection open');

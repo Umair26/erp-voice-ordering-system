@@ -102,14 +102,17 @@ function extractProductFromMixed(transcript) {
     .replace(/\s+/g, ' ')
     .trim();
 }
+
 function spokenToEmail(text) {
-  return text
+  // Extract only the part after "is" to avoid picking up stray letters
+  const afterIs = text.replace(/.*\b(is|address)\b\s*/i, '').trim();
+  const cleaned = (afterIs || text)
     .toLowerCase()
     .replace(/\s+dot\s+/g, '.')
-    .replace(/\s+at the rate\s+/g, '@')  // "at the rate" → @
-    .replace(/\s+at\s+/g, '@')            // "at" → @
-    .replace(/\s+/g, '')
-    .match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/)?.[0] || null;
+    .replace(/\s+at the rate\s+/g, '@')
+    .replace(/\s+at\s+/g, '@')
+    .replace(/\s+/g, '');
+  return cleaned.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/)?.[0] || null;
 }
 
 async function updateState(state, transcript) {
@@ -119,10 +122,15 @@ async function updateState(state, transcript) {
   // ── IDENTIFY ──
   if (state.state === STATES.IDENTIFY) {
     // Check for email — typed or spoken ("d dot wilson at gmail dot com")
-    const emailAddress = 
-      transcript.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] 
-      || spokenToEmail(transcript);
+    // In IDENTIFY, before lookupParam:
+const emailAddress = 
+  transcript.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] 
+  || spokenToEmail(transcript);
 
+// Skip if transcript has no useful info
+if (!emailAddress && !extractCustomerId(transcript)) {
+  return null; // stay silent, wait for more input
+}
     const lookupParam = emailAddress
       ? { customer_email: emailAddress }
       : { customer_id: extractCustomerId(transcript) };
