@@ -124,9 +124,17 @@ function spokenToEmail(text) {
     .replace(/\byeah\.?\s*/i, '')
     .replace(/\s+dot\s+/g, '.')
     .replace(/\s+at the rate\s+/g, '@')
-    .replace(/\s+direct\s+/g, '@')   // ← "direct" → @
+    .replace(/\s+direct\s+/g, '@')
     .replace(/\s+at\s+/g, '@')
-    .replace(/\s+/g, '');
+    .replace(/\s+/g, '')
+    // Fix common Deepgram TLD mishearings
+    .replace(/\.form$/g, '.com')
+    .replace(/\.calm$/g, '.com')
+    .replace(/\.come$/g, '.com')
+    .replace(/\.con$/g, '.com')
+    .replace(/\.co$/g, '.com')
+    .replace(/\.org\.$/g, '.org')
+    .replace(/\.net\.$/g, '.net');
   return cleaned.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/)?.[0] || null;
 }
 

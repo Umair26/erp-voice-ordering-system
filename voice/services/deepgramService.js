@@ -8,7 +8,7 @@ function startDeepgramStream(onTranscript) {
   console.log('🔑 Deepgram API key:', process.env.DEEPGRAM_API_KEY ? 'loaded' : 'MISSING');
 
   const live = deepgram.listen.live({
-    model: 'nova-2',
+    model: 'nova-2-general',
     language: 'en-US',
     encoding: 'mulaw',
     sample_rate: 8000,
@@ -19,7 +19,7 @@ function startDeepgramStream(onTranscript) {
 
   let accumulatedText = '';
   let silenceTimer = null;
-  const SILENCE_DELAY = 6000; // Wait 2s after last is_final before processing
+  const SILENCE_DELAY = 5000; // Wait 2s after last is_final before processing
 
   live.on(LiveTranscriptionEvents.Open, () => {
     console.log('🎙️  Deepgram connection open');
