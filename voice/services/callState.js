@@ -106,7 +106,8 @@ function spokenToEmail(text) {
   return text
     .toLowerCase()
     .replace(/\s+dot\s+/g, '.')
-    .replace(/\s+at\s+/g, '@')
+    .replace(/\s+at the rate\s+/g, '@')  // "at the rate" → @
+    .replace(/\s+at\s+/g, '@')            // "at" → @
     .replace(/\s+/g, '')
     .match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/)?.[0] || null;
 }
@@ -145,7 +146,7 @@ async function updateState(state, transcript) {
     }
     return "I could not find your account. Please say your customer ID, for example C zero zero five, or your email address.";
   }
-  
+
   // ── ORDER ──
   if (state.state === STATES.ORDER) {
     const de = state.customer?.language === 'DE';
