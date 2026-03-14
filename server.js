@@ -462,7 +462,9 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Internal server error." });
 });
 
-app.listen(PORT, () => {
+const { initVoiceServer } = require('./voice/voice-server');
+
+const server = app.listen(PORT, () => {
   console.log(`\n🚀 Mock ERP API v3.0 → http://localhost:${PORT}`);
   console.log(`🔑 Token: ${API_TOKEN}`);
   console.log(`📊 Customers: ${customers.length} | Items: ${items.length} | Orders: ${orders.length}`);
@@ -471,3 +473,5 @@ app.listen(PORT, () => {
   console.log("  GET/POST /api/item      → lookup by article_number or search");
   console.log("  POST     /api/order     → create order\n");
 });
+
+initVoiceServer(app, server);

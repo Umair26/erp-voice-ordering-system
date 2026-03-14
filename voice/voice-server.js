@@ -1,25 +1,13 @@
-require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
-
-const express = require('express');
+// This file is required by server.js — it attaches voice routes to the existing Express app
 const { WebSocketServer } = require('ws');
 const twilio = require('twilio');
-const twilioRoute = require('./routes/twilioWebhook');
 const { startDeepgramStream } = require('./services/deepgramService');
 const { newCallState, updateState } = require('./services/callState');
-
-const PORT = process.env.VOICE_PORT || 4000;
 
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
 );
-
-const app = express();
-app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
-app.use('/incoming-call', twilioRoute);
-
-app.get('/health', (req, res) => res.json({ status: 'ok', port: PORT }));
 
 const callStates = new Map();
 
@@ -35,112 +23,121 @@ async function sendVoiceResponse(text, callSid) {
     const twiml = final
       ? `<Response><Say>${text}</Say><Hangup/></Response>`
       : `<Response><Say>${text}</Say><Connect><Stream url="wss://${domain}/audio-stream"/></Connect></Response>`;
-
     await twilioClient.calls(callSid).update({ twiml });
-    console.log(final ? '📴 Goodbye — call will hang up' : '✅ TwiML sent to caller');
+    console.log(final ? '📴 Goodbye — hanging up' : '✅ TwiML sent');
   } catch (err) {
     console.error('❌ Failed to send TwiML:', err.message);
   }
 }
 
-const server = app.listen(PORT, () => {
-  console.log(`✅ Voice server running on port ${PORT}`);
-  console.log(`📞 Twilio webhook → POST /incoming-call`);
-  console.log(`🔊 WebSocket stream → wss://${process.env.DOMAIN}/audio-stream`);
-});
+function initVoiceServer(app, server) {
+  // Mount Twilio webhook on the shared Express app
+  app.post('/incoming-call', (req, res) => {
+    const domain = process.env.DOMAIN;
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>Welcome to the ordering system. Please state your customer ID or email and what you need.</Say>
+  <Connect>
+    <Stream url="wss://${domain}/audio-stream"/>
+  </Connect>
+</Response>`;
+    res.type('text/xml').send(twiml);
+  });
 
-const wss = new WebSocketServer({ server, path: '/audio-stream' });
+  app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-wss.on('connection', (ws) => {
-  console.log('📲 New call connected via WebSocket');
+  // Attach WebSocket server to the same HTTP server
+  const wss = new WebSocketServer({ server, path: '/audio-stream' });
 
-  let dgStream = null;
-  let callSid = null;
-  let processing = false;
-  let state = null;
+  wss.on('connection', (ws) => {
+    console.log('📲 New call connected via WebSocket');
 
-  function startNewDeepgramStream() {
-    try {
-      dgStream = startDeepgramStream(async (transcript) => {
-        if (!transcript || !transcript.trim()) return;
-        if (processing) return;
-        processing = true;
+    let dgStream = null;
+    let callSid = null;
+    let processing = false;
+    let state = null;
 
-        console.log(`🎤 Transcript: "${transcript}"`);
+    function startNewDeepgramStream() {
+      try {
+        dgStream = startDeepgramStream(async (transcript) => {
+          if (!transcript || !transcript.trim()) return;
+          if (processing) return;
+          processing = true;
 
-        // Customer said goodbye
-        if (/\b(goodbye|bye|ok goodbye|ok bye|good bye)\b/i.test(transcript)) {
-          await sendVoiceResponse('Thank you. Goodbye!', callSid);
-          processing = false;
-          return;
-        }
+          console.log(`🎤 Transcript: "${transcript}"`);
 
-        try {
-          const response = await updateState(state, transcript);
-          if (response && callSid) {
-            await sendVoiceResponse(response, callSid);
+          if (/\b(goodbye|bye|ok goodbye|ok bye|good bye)\b/i.test(transcript)) {
+            await sendVoiceResponse('Thank you. Goodbye!', callSid);
+            processing = false;
+            return;
           }
-        } catch (err) {
-          console.error('❌ Error in updateState:', err.message);
-          if (callSid) await sendVoiceResponse('There was an error. Please try again.', callSid);
+
+          try {
+            const response = await updateState(state, transcript);
+            if (response && callSid) {
+              await sendVoiceResponse(response, callSid);
+            }
+          } catch (err) {
+            console.error('❌ Error in updateState:', err.message);
+            if (callSid) await sendVoiceResponse('There was an error. Please try again.', callSid);
+          }
+
+          processing = false;
+        });
+      } catch (err) {
+        console.error('❌ Failed to start Deepgram stream:', err.message);
+      }
+    }
+
+    startNewDeepgramStream();
+
+    ws.on('message', async (msg) => {
+      try {
+        const data = JSON.parse(msg);
+
+        if (data.event === 'connected') {
+          console.log('🔗 Twilio media stream connected');
         }
 
-        processing = false;
-      });
-    } catch (err) {
-      console.error('❌ Failed to start Deepgram stream:', err.message);
-    }
-  }
-
-  startNewDeepgramStream();
-
-  ws.on('message', async (msg) => {
-    try {
-      const data = JSON.parse(msg);
-
-      if (data.event === 'connected') {
-        console.log('🔗 Twilio media stream connected');
-      }
-
-      if (data.event === 'start') {
-        callSid = data.start?.callSid;
-
-        if (!callStates.has(callSid)) {
-          callStates.set(callSid, newCallState());
-          console.log(`📡 New call — CallSid: ${callSid}`);
-        } else {
-          console.log(`📡 Reconnected — CallSid: ${callSid} | State: ${callStates.get(callSid).state}`);
+        if (data.event === 'start') {
+          callSid = data.start?.callSid;
+          if (!callStates.has(callSid)) {
+            callStates.set(callSid, newCallState());
+            console.log(`📡 New call — CallSid: ${callSid}`);
+          } else {
+            console.log(`📡 Reconnected — CallSid: ${callSid} | State: ${callStates.get(callSid).state}`);
+          }
+          state = callStates.get(callSid);
         }
 
-        state = callStates.get(callSid);
-      }
+        if (data.event === 'media') {
+          if (!dgStream || !state) return;
+          const audio = Buffer.from(data.media.payload, 'base64');
+          dgStream.send(audio);
+        }
 
-      if (data.event === 'media') {
-        if (!dgStream || !state) return;
-        const audio = Buffer.from(data.media.payload, 'base64');
-        dgStream.send(audio);
-      }
+        if (data.event === 'stop') {
+          console.log('🛑 Twilio stream stopped');
+        }
 
-      if (data.event === 'stop') {
-        console.log('🛑 Twilio stream stopped');
+      } catch (err) {
+        console.error('❌ Error parsing WebSocket message:', err.message);
       }
+    });
 
-    } catch (err) {
-      console.error('❌ Error parsing WebSocket message:', err.message);
-    }
+    ws.on('close', () => {
+      console.log('📴 Call ended — WebSocket closed');
+      if (dgStream) { try { dgStream.finish(); } catch (_) {} }
+      if (callSid && state && state.state === 'DONE') {
+        callStates.delete(callSid);
+      }
+    });
+
+    ws.on('error', (err) => console.error('❌ WebSocket error:', err.message));
   });
 
-  ws.on('close', () => {
-    console.log('📴 Call ended — WebSocket closed');
-    if (dgStream) { try { dgStream.finish(); } catch (_) {} }
-    // Only delete state when call is fully done — NOT on every stream reconnect
-    if (callSid && state && state.state === 'DONE') {
-      callStates.delete(callSid);
-      console.log(`🗑️ State cleared for ${callSid}`);
-    }
-  });
+  console.log('📞 Voice server attached — POST /incoming-call');
+  console.log(`🔊 WebSocket stream → wss://${process.env.DOMAIN}/audio-stream`);
+}
 
-  ws.on('error', (err) => console.error('❌ WebSocket error:', err.message));
-});
-
-server.on('error', (err) => console.error('❌ Server error:', err.message));
+module.exports = { initVoiceServer };
