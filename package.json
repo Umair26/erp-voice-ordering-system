@@ -4,7 +4,7 @@
   "description": "Voice ERP ordering system",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js & node voice/voice-server.js",
+    "start": "node server.js",
     "start:erp": "node server.js",
     "start:voice": "node voice/voice-server.js",
     "dev": "nodemon server.js"
