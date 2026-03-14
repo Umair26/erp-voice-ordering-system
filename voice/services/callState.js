@@ -122,19 +122,13 @@ function spokenToEmail(text) {
     .replace(/.*\b(is|address is|email is)\s*/i, '')
     .replace(/\bit'?s\s*/i, '')
     .replace(/\byeah\.?\s*/i, '')
+    .replace(/\s+(at the rate|direct|geret|iterate|directed|at)\s+/g, '@')
     .replace(/\s+dot\s+/g, '.')
-    .replace(/\s+at the rate\s+/g, '@')
-    .replace(/\s+direct\s+/g, '@')
-    .replace(/\s+at\s+/g, '@')
     .replace(/\s+/g, '')
-    // Fix common Deepgram TLD mishearings
     .replace(/\.form$/g, '.com')
     .replace(/\.calm$/g, '.com')
     .replace(/\.come$/g, '.com')
-    .replace(/\.con$/g, '.com')
-    .replace(/\.co$/g, '.com')
-    .replace(/\.org\.$/g, '.org')
-    .replace(/\.net\.$/g, '.net');
+    .replace(/\.con$/g, '.com');
   return cleaned.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/)?.[0] || null;
 }
 
