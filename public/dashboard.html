@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERP Voice Bot — Call Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+  .header { background: #1e293b; border-bottom: 1px solid #334155; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; }
+  .header h1 { font-size: 20px; font-weight: 600; color: #f1f5f9; }
+  .header .subtitle { font-size: 13px; color: #64748b; margin-top: 2px; }
+  .refresh-btn { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .refresh-btn:hover { background: #2563eb; }
+  .container { padding: 24px 32px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 20px; }
+  .stat-label { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 28px; font-weight: 700; margin-top: 6px; color: #f1f5f9; }
+  .stat-value.green { color: #22c55e; }
+  .stat-value.blue { color: #3b82f6; }
+  .stat-value.yellow { color: #eab308; }
+  .stat-value.red { color: #ef4444; }
+  .section-title { font-size: 15px; font-weight: 600; color: #94a3b8; margin-bottom: 12px; }
+  .table-wrap { background: #1e293b; border: 1px solid #334155; border-radius: 10px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead { background: #0f172a; }
+  th { padding: 12px 16px; text-align: left; color: #64748b; font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 12px 16px; border-top: 1px solid #1e293b; color: #cbd5e1; }
+  tr:hover td { background: #1e293b88; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge.active { background: #166534; color: #4ade80; }
+  .badge.completed { background: #1e3a5f; color: #60a5fa; }
+  .badge.order { background: #713f12; color: #fbbf24; }
+  .empty { text-align: center; padding: 48px; color: #475569; }
+  .cost-highlight { color: #ef4444; font-weight: 600; }
+  .duration { color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>📞 Voice Bot Dashboard</h1>
+    <div class="subtitle">Real-time call costs and order tracking</div>
+  </div>
+  <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+</div>
+
+<div class="container">
+  <div class="stats-grid" id="stats">
+    <div class="stat-card"><div class="stat-label">Total Calls</div><div class="stat-value blue" id="s-total">—</div></div>
+    <div class="stat-card"><div class="stat-label">Deepgram Cost</div><div class="stat-value red" id="s-deepgram">—</div></div>
+    <div class="stat-card"><div class="stat-label">Twilio Cost</div><div class="stat-value red" id="s-twilio">—</div></div>
+    <div class="stat-card"><div class="stat-label">Total Cost</div><div class="stat-value red" id="s-total-cost">—</div></div>
+    <div class="stat-card"><div class="stat-label">Orders Placed</div><div class="stat-value yellow" id="s-orders">—</div></div>
+    <div class="stat-card"><div class="stat-label">Order Value</div><div class="stat-value green" id="s-order-value">—</div></div>
+  </div>
+
+  <div class="section-title">Call History</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Call SID</th>
+          <th>Customer</th>
+          <th>Duration</th>
+          <th>Deepgram</th>
+          <th>Twilio</th>
+          <th>Total Cost</th>
+          <th>Order</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="calls-table">
+        <tr><td colspan="9" class="empty">No calls yet</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function fmt(n) { return '$' + (n || 0).toFixed(4); }
+function fmtD(n) { return '$' + (n || 0).toFixed(2); }
+function fmtTime(t) {
+  if (!t) return '—';
+  const d = new Date(t);
+  return d.toLocaleTimeString() + ' ' + d.toLocaleDateString();
+}
+function fmtDur(s) {
+  if (!s) return '—';
+  const m = Math.floor(s / 60), sec = s % 60;
+  return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+}
+
+async function loadData() {
+  try {
+    const res = await fetch('/api/calls');
+    const data = await res.json();
+
+    // Summary
+    const s = data.summary;
+    document.getElementById('s-total').textContent = s.totalCalls;
+    document.getElementById('s-deepgram').textContent = fmt(s.totalDeepgramCost);
+    document.getElementById('s-twilio').textContent = fmt(s.totalTwilioCost);
+    document.getElementById('s-total-cost').textContent = fmt(s.totalCost);
+    document.getElementById('s-orders').textContent = s.ordersPlaced;
+    document.getElementById('s-order-value').textContent = fmtD(s.totalOrderValue);
+
+    // Table
+    const tbody = document.getElementById('calls-table');
+    if (!data.calls.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="empty">No calls yet</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.calls.map(c => `
+      <tr>
+        <td class="duration">${fmtTime(c.startTime)}</td>
+        <td style="font-family:monospace;font-size:11px;color:#475569">${c.callSid.slice(-8)}</td>
+        <td>${c.customer || '<span style="color:#475569">—</span>'}</td>
+        <td class="duration">${fmtDur(c.durationSeconds)}</td>
+        <td class="cost-highlight">${fmt(c.deepgramCost)}</td>
+        <td class="cost-highlight">${fmt(c.twilioCost)}</td>
+        <td class="cost-highlight" style="font-weight:700">${fmt(c.totalCost)}</td>
+        <td>${c.orderPlaced ? `<span class="badge order">${c.orderId}</span>` : '<span style="color:#475569">—</span>'}</td>
+        <td><span class="badge ${c.status}">${c.status}</span></td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    console.error('Failed to load:', e);
+  }
+}
+
+loadData();
+setInterval(loadData, 10000); // auto-refresh every 10s
+</script>
+</body>
+</html>

@@ -116,7 +116,7 @@ function extractProductFromMixed(transcript) {
 }
 
 function spokenToEmail(text) {
-  
+
   const cleaned = text
     .toLowerCase()
     .replace(/.*\b(is|address is|email is)\s*/i, '')
@@ -304,6 +304,7 @@ if (!emailAddress && !extractCustomerId(transcript)) {
         );
         state.state = STATES.DONE;
         if (order.order_created) {
+          state.lastOrder = order; 
           const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
           const spokenId = speakOrderNumber(order.order_id);
           return de

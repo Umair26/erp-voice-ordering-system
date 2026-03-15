@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 
 router.post('/', (req, res) => {
-  const domain = process.env.DOMAIN; // bare domain, no https://
+  const domain = process.env.DOMAIN;
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say>Hi there, tell me your customer ID to proceed.</Say>
+  <Say>Welcome to the ordering system. Please state your customer ID or email.</Say>
   <Connect>
     <Stream url="wss://${domain}/audio-stream"/>
   </Connect>

@@ -1,8 +1,8 @@
-// This file is required by server.js — it attaches voice routes to the existing Express app
 const { WebSocketServer } = require('ws');
 const twilio = require('twilio');
 const { startDeepgramStream } = require('./services/deepgramService');
 const { newCallState, updateState } = require('./services/callState');
+const { startCall, getCall, updateCall, endCall } = require('./services/callTracker');
 
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -31,12 +31,11 @@ async function sendVoiceResponse(text, callSid) {
 }
 
 function initVoiceServer(app, server) {
-  // Mount Twilio webhook on the shared Express app
   app.post('/incoming-call', (req, res) => {
     const domain = process.env.DOMAIN;
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say>Welcome to the ordering system. Please state your customer ID or email and what you need.</Say>
+  <Say>Welcome to the ordering system. Please state your customer ID or email.</Say>
   <Connect>
     <Stream url="wss://${domain}/audio-stream"/>
   </Connect>
@@ -44,9 +43,18 @@ function initVoiceServer(app, server) {
     res.type('text/xml').send(twiml);
   });
 
+  // Twilio status callback — fired when call ends, gives us duration
+  app.post('/call-status', (req, res) => {
+    const { CallSid, CallDuration, CallStatus } = req.body;
+    console.log(`📊 Call status: ${CallStatus} | Duration: ${CallDuration}s | SID: ${CallSid}`);
+    if (CallDuration) {
+      endCall(CallSid, parseInt(CallDuration));
+    }
+    res.sendStatus(200);
+  });
+
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-  // Attach WebSocket server to the same HTTP server
   const wss = new WebSocketServer({ server, path: '/audio-stream' });
 
   wss.on('connection', (ws) => {
@@ -56,6 +64,8 @@ function initVoiceServer(app, server) {
     let callSid = null;
     let processing = false;
     let state = null;
+    let deepgramSeconds = 0;
+    let streamStartTime = null;
 
     function startNewDeepgramStream() {
       try {
@@ -74,6 +84,21 @@ function initVoiceServer(app, server) {
 
           try {
             const response = await updateState(state, transcript);
+
+            // Track customer name when identified
+            if (state.customer && callSid) {
+              updateCall(callSid, { customer: state.customer.customer_name });
+            }
+
+            // Track order when placed
+            if (state.state === 'DONE' && state.lastOrder && callSid) {
+              updateCall(callSid, {
+                orderPlaced: true,
+                orderId: state.lastOrder.order_id,
+                orderTotal: state.lastOrder.total_price || 0,
+              });
+            }
+
             if (response && callSid) {
               await sendVoiceResponse(response, callSid);
             }
@@ -101,12 +126,16 @@ function initVoiceServer(app, server) {
 
         if (data.event === 'start') {
           callSid = data.start?.callSid;
+          streamStartTime = Date.now();
+
           if (!callStates.has(callSid)) {
             callStates.set(callSid, newCallState());
+            startCall(callSid); // ← start tracking
             console.log(`📡 New call — CallSid: ${callSid}`);
           } else {
             console.log(`📡 Reconnected — CallSid: ${callSid} | State: ${callStates.get(callSid).state}`);
           }
+
           state = callStates.get(callSid);
         }
 
@@ -114,10 +143,15 @@ function initVoiceServer(app, server) {
           if (!dgStream || !state) return;
           const audio = Buffer.from(data.media.payload, 'base64');
           dgStream.send(audio);
+          // Track Deepgram audio duration (each mulaw chunk = 20ms)
+          deepgramSeconds += 0.02;
         }
 
         if (data.event === 'stop') {
           console.log('🛑 Twilio stream stopped');
+          if (callSid) {
+            updateCall(callSid, { deepgramSeconds: Math.round(deepgramSeconds) });
+          }
         }
 
       } catch (err) {

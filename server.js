@@ -453,7 +453,16 @@ app.get("/api/items",               authenticate, (req, res) => res.json({ total
 app.get("/api/orders",              authenticate, (req, res) => res.json({ total: orders.length, orders }));
 app.post("/api/create-order",       authenticate, (req, res) => { req.url = '/api/order'; app._router.handle(req, res); });
 app.post("/api/customers/lookup",   authenticate, (req, res) => { req.body.customer_id = req.body.customer_id; return res.redirect(307, '/api/customer'); });
-
+// Dashboard page
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+ 
+// Dashboard API
+app.get('/api/calls', (req, res) => {
+  const { getAllCalls, getSummary } = require('./voice/services/callTracker');
+  res.json({ calls: getAllCalls(), summary: getSummary() });
+});
 // ─────────────────────────────────────────────
 // ERROR HANDLER
 // ─────────────────────────────────────────────
