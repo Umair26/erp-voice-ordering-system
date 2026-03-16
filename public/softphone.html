@@ -39,7 +39,6 @@
     padding: 40px 16px;
   }
 
-  /* Animated grid background */
   body::before {
     content: '';
     position: fixed;
@@ -57,7 +56,6 @@
     100% { transform: translateY(48px); }
   }
 
-  /* Glow orbs */
   body::after {
     content: '';
     position: fixed;
@@ -76,7 +74,6 @@
     width: 380px;
   }
 
-  /* Header */
   .header {
     text-align: center;
     margin-bottom: 28px;
@@ -105,7 +102,6 @@
     margin-top: 4px;
   }
 
-  /* Main card */
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -114,7 +110,6 @@
     box-shadow: 0 0 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,229,255,0.04);
   }
 
-  /* Status display */
   .status-display {
     background: var(--bg);
     border: 1px solid var(--border);
@@ -176,7 +171,6 @@
     text-align: right;
   }
 
-  /* Token input */
   .input-group {
     margin-bottom: 20px;
   }
@@ -211,7 +205,6 @@
 
   .input-group input::placeholder { color: var(--muted); }
 
-  /* Dial pad */
   .dialpad {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -255,7 +248,6 @@
     letter-spacing: 1px;
   }
 
-  /* Number display */
   .number-display {
     background: var(--bg);
     border: 1px solid var(--border);
@@ -271,7 +263,6 @@
     transition: border-color 0.2s;
   }
 
-  /* Action buttons */
   .actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -317,7 +308,6 @@
 
   .btn-icon { font-size: 18px; }
 
-  /* Connect SDK button */
   .btn-connect {
     width: 100%;
     background: var(--accent-dim);
@@ -337,7 +327,80 @@
   .btn-connect:hover { background: rgba(0,229,255,0.2); }
   .btn-connect:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  /* Log */
+  /* ── Text Input Section ── */
+  .text-input-section {
+    margin-bottom: 20px;
+  }
+
+  .text-input-section label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .text-input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .text-input-row input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--amber);
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--amber);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .text-input-row input:focus {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 3px rgba(255,184,0,0.1);
+  }
+
+  .text-input-row input::placeholder { color: var(--muted); }
+
+  .btn-send {
+    background: rgba(255,184,0,0.15);
+    border: 1px solid var(--amber);
+    color: var(--amber);
+    border-radius: 10px;
+    padding: 11px 18px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-send:hover { background: rgba(255,184,0,0.25); transform: translateY(-1px); }
+  .btn-send:active { transform: translateY(0); }
+  .btn-send:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+  .text-hint {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  .text-hint span {
+    color: var(--amber);
+    cursor: pointer;
+    margin-right: 8px;
+    transition: opacity 0.2s;
+  }
+
+  .text-hint span:hover { opacity: 0.7; }
+
   .log-wrap {
     background: var(--bg);
     border: 1px solid var(--border);
@@ -395,8 +458,8 @@
   .log-msg.success { color: var(--green); }
   .log-msg.error { color: var(--red); }
   .log-msg.warn { color: var(--amber); }
+  .log-msg.sent { color: var(--amber); }
 
-  /* Mute button */
   .btn-mute {
     width: 100%;
     background: var(--surface2);
@@ -414,7 +477,6 @@
   .btn-mute:hover { border-color: var(--amber); color: var(--amber); }
   .btn-mute.muted { background: rgba(255,184,0,0.1); border-color: var(--amber); color: var(--amber); }
 
-  /* Setup instructions */
   .setup-note {
     background: rgba(0,229,255,0.05);
     border: 1px solid rgba(0,229,255,0.15);
@@ -453,7 +515,6 @@
 
   <div class="card">
 
-    <!-- Status -->
     <div class="status-display">
       <div class="status-row">
         <div class="status-dot" id="statusDot"></div>
@@ -463,7 +524,6 @@
       <div class="timer" id="timer" style="display:none">00:00</div>
     </div>
 
-    <!-- Setup note -->
     <div class="setup-note">
       <p>
         <strong>How to get your Access Token:</strong><br>
@@ -474,29 +534,24 @@
       </p>
     </div>
 
-    <!-- Token input -->
     <div class="input-group">
       <label>Twilio Access Token</label>
       <input type="text" id="tokenInput" placeholder="eyJhbGciOiJIUzI1NiJ9..." />
     </div>
 
-    <!-- Connect SDK -->
     <button class="btn-connect" id="connectBtn" onclick="connectSDK()">
       ⚡ CONNECT TWILIO SDK
     </button>
 
     <div class="divider"></div>
 
-    <!-- Number to call -->
     <div class="input-group">
       <label>Your Twilio Phone Number</label>
       <input type="text" id="toNumber" placeholder="+12025551234" />
     </div>
 
-    <!-- Dial display -->
     <div class="number-display" id="dialDisplay">—</div>
 
-    <!-- Dial pad -->
     <div class="dialpad">
       <div class="dial-btn" onclick="dialPress('1')"><span class="num">1</span><span class="sub"> </span></div>
       <div class="dial-btn" onclick="dialPress('2')"><span class="num">2</span><span class="sub">ABC</span></div>
@@ -512,7 +567,6 @@
       <div class="dial-btn" onclick="dialPress('#')"><span class="num">#</span><span class="sub"> </span></div>
     </div>
 
-    <!-- Call / Hangup -->
     <div class="actions">
       <button class="btn btn-call" id="callBtn" onclick="makeCall()" disabled>
         <span class="btn-icon">📞</span> Call
@@ -522,12 +576,34 @@
       </button>
     </div>
 
-    <!-- Mute -->
     <button class="btn-mute" id="muteBtn" onclick="toggleMute()" disabled>
       🎤 MUTE MICROPHONE
     </button>
 
-    <!-- Log -->
+    <div class="divider"></div>
+
+    <!-- ── Text Input (Manual) ── -->
+    <div class="text-input-section">
+      <label>⌨ Manual Text Input (bypass voice)</label>
+      <div class="text-input-row">
+        <input
+          type="text"
+          id="textInput"
+          placeholder="Type C005, A006, yes, no..."
+          onkeydown="if(event.key==='Enter') sendText()"
+        />
+        <button class="btn-send" id="sendBtn" onclick="sendText()" disabled>SEND</button>
+      </div>
+      <div class="text-hint">
+        Quick:
+        <span onclick="quickSend('C005')">C005</span>
+        <span onclick="quickSend('A006')">A006</span>
+        <span onclick="quickSend('yes')">yes</span>
+        <span onclick="quickSend('no')">no</span>
+        <span onclick="quickSend('goodbye')">goodbye</span>
+      </div>
+    </div>
+
     <div class="log-wrap">
       <div class="log-header">
         <span>// EVENT LOG</span>
@@ -552,7 +628,6 @@
   let isMuted = false;
   let dialBuffer = '';
 
-  // ── Logging ──
   function log(msg, type = 'info') {
     const body = document.getElementById('logBody');
     const now = new Date();
@@ -568,7 +643,6 @@
     document.getElementById('logBody').innerHTML = '';
   }
 
-  // ── Status ──
   function setStatus(dot, text, sub, showTimer = false) {
     document.getElementById('statusDot').className = `status-dot ${dot}`;
     document.getElementById('statusText').textContent = text;
@@ -576,7 +650,6 @@
     document.getElementById('timer').style.display = showTimer ? 'block' : 'none';
   }
 
-  // ── Timer ──
   function startTimer() {
     callSeconds = 0;
     timerInterval = setInterval(() => {
@@ -592,32 +665,25 @@
     document.getElementById('timer').textContent = '00:00';
   }
 
-  // ── Dial pad ──
   function dialPress(digit) {
     dialBuffer += digit;
     document.getElementById('dialDisplay').textContent = dialBuffer;
     if (activeCall) activeCall.sendDigits(digit);
   }
 
-  // ── Connect Twilio Device ──
   async function connectSDK() {
     const token = document.getElementById('tokenInput').value.trim();
-    if (!token) {
-      log('⚠ Paste your Access Token first', 'warn');
-      return;
-    }
+    if (!token) { log('⚠ Paste your Access Token first', 'warn'); return; }
 
     log('Connecting Twilio SDK...', 'info');
     document.getElementById('connectBtn').disabled = true;
 
     try {
-      // SDK v2.x API
       device = new Twilio.Device(token, {
         codecPreferences: ['opus', 'pcmu'],
         logLevel: 1,
       });
 
-      // v2.x uses 'registered' instead of 'ready'
       device.on('registered', () => {
         log('✔ SDK connected — ready to call', 'success');
         setStatus('ready', 'Ready', 'SDK connected. Enter your Twilio number and call.');
@@ -632,19 +698,16 @@
         document.getElementById('connectBtn').textContent = '⚡ CONNECT TWILIO SDK';
       });
 
-      // v2.x uses 'accept' on the call object
       device.on('incoming', (call) => {
         log('📲 Incoming call', 'info');
         call.accept();
         setupCallHandlers(call);
       });
 
-      // Register the device
       await device.register();
 
     } catch (err) {
       log(`✖ Failed to init SDK: ${err.message}`, 'error');
-      console.error(err);
       document.getElementById('connectBtn').disabled = false;
     }
   }
@@ -654,11 +717,12 @@
 
     call.on('accept', () => {
       log('📞 Call connected', 'success');
-      setStatus('connected', 'In Call', 'Speak now — your mic is live', true);
+      setStatus('connected', 'In Call', 'Speak now — or type below to send text', true);
       startTimer();
       document.getElementById('hangupBtn').disabled = false;
       document.getElementById('muteBtn').disabled = false;
       document.getElementById('callBtn').disabled = true;
+      document.getElementById('sendBtn').disabled = false; // ← enable text input
     });
 
     call.on('disconnect', () => {
@@ -669,6 +733,7 @@
       document.getElementById('hangupBtn').disabled = true;
       document.getElementById('muteBtn').disabled = true;
       document.getElementById('callBtn').disabled = false;
+      document.getElementById('sendBtn').disabled = true; // ← disable text input
       isMuted = false;
       document.getElementById('muteBtn').classList.remove('muted');
       document.getElementById('muteBtn').textContent = '🎤 MUTE MICROPHONE';
@@ -681,7 +746,6 @@
     });
   }
 
-  // ── Make Call ──
   async function makeCall() {
     if (!device) { log('⚠ Connect SDK first', 'warn'); return; }
     const to = document.getElementById('toNumber').value.trim();
@@ -697,19 +761,18 @@
       setupCallHandlers(call);
     } catch (err) {
       log(`✖ Call failed: ${err.message}`, 'error');
-      console.error(err);
+
       setStatus('ready', 'Ready', 'Call failed — check your number and token');
     }
   }
 
-  // ── Hang Up ──
+  
   function hangUp() {
     if (activeCall) activeCall.disconnect();
     else if (device) device.disconnectAll();
     log('📵 You ended the call', 'warn');
   }
 
-  // ── Mute ──
   function toggleMute() {
     if (!activeCall) return;
     isMuted = !isMuted;
@@ -724,6 +787,32 @@
       btn.textContent = '🎤 MUTE MICROPHONE';
       log('🎤 Microphone unmuted', 'info');
     }
+  }
+
+  // ── Text Input ──
+  async function sendText() {
+    const input = document.getElementById('textInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    log(`⌨ Sent: "${text}"`, 'sent');
+    input.value = '';
+
+    try {
+      const res = await fetch('/api/inject-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      if (!res.ok) log('✖ Server error sending text', 'error');
+    } catch (e) {
+      log(`✖ Failed: ${e.message}`, 'error');
+    }
+  }
+
+  function quickSend(text) {
+    document.getElementById('textInput').value = text;
+    sendText();
   }
 </script>
 </body>

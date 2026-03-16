@@ -11,5 +11,6 @@ router.post('/', (req, res) => {
   </Connect>
 </Response>`;
   res.type('text/xml').send(twiml);
+});
 
 module.exports = router;

@@ -1,8 +1,10 @@
+const express = require('express');
 const { WebSocketServer } = require('ws');
 const twilio = require('twilio');
 const { startDeepgramStream } = require('./services/deepgramService');
 const { newCallState, updateState } = require('./services/callState');
 const { startCall, getCall, updateCall, endCall } = require('./services/callTracker');
+
 
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -44,10 +46,9 @@ function initVoiceServer(app, server) {
   });
 
   // Twilio status callback — fired when call ends, gives us duration
-  app.post('/call-status', (req, res) => {
-  console.log('📊 Raw callback body:', JSON.stringify(req.body));
+app.post('/call-status', express.urlencoded({ extended: false }), (req, res) => {
+  console.log('📊 Raw body:', JSON.stringify(req.body));
   const { CallSid, CallDuration, CallStatus } = req.body;
-  console.log(`📊 Call status: ${CallStatus} | Duration: ${CallDuration}s | SID: ${CallSid}`);
   if (CallSid && CallDuration) {
     endCall(CallSid, parseInt(CallDuration));
   }
@@ -56,7 +57,45 @@ function initVoiceServer(app, server) {
 
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-  const wss = new WebSocketServer({ server, path: '/audio-stream' });
+app.post('/api/inject-text', async (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'No text provided' });
+
+  const entries = [...callStates.entries()];
+  if (!entries.length) return res.status(404).json({ error: 'No active call' });
+
+  const [callSid, state] = entries[entries.length - 1];
+  console.log(`⌨ Text injection: "${text}" → CallSid: ${callSid}`);
+
+  try {
+    const response = await updateState(state, text);
+
+    // Track customer
+    if (state.customer && callSid) {
+      updateCall(callSid, { customer: state.customer.customer_name });
+    }
+
+    // Track order
+    console.log(`🔍 State: ${state.state} | lastOrder: ${JSON.stringify(state.lastOrder)}`);
+    if (state.state === 'DONE' && state.lastOrder && callSid) {
+      updateCall(callSid, {
+        orderPlaced: true,
+        orderId: state.lastOrder.order_id,
+        orderTotal: state.lastOrder.total_price || 0,
+      });
+      console.log(`✅ Order tracked: ${state.lastOrder.order_id}`);
+    }
+
+    if (response) await sendVoiceResponse(response, callSid);
+    res.json({ ok: true, response });
+  } catch (e) {
+    console.error('❌ Text injection error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+const wss = new WebSocketServer({ server, path: '/audio-stream' });
+  
 
   wss.on('connection', (ws) => {
     console.log('📲 New call connected via WebSocket');
@@ -91,14 +130,16 @@ function initVoiceServer(app, server) {
               updateCall(callSid, { customer: state.customer.customer_name });
             }
 
-            // Track order when placed
-            if (state.state === 'DONE' && state.lastOrder && callSid) {
-              updateCall(callSid, {
-                orderPlaced: true,
-                orderId: state.lastOrder.order_id,
-                orderTotal: state.lastOrder.total_price || 0,
-              });
-            }
+           // After updateState call, add:
+           console.log(`🔍 State after update: ${state.state} | lastOrder: ${JSON.stringify(state.lastOrder)}`);
+if (state.state === 'DONE' && state.lastOrder && callSid) {
+  updateCall(callSid, {
+    orderPlaced: true,
+    orderId: state.lastOrder.order_id,
+    orderTotal: state.lastOrder.total_price || 0,
+  });
+  console.log(`✅ Order tracked: ${state.lastOrder.order_id}`);
+}
 
             if (response && callSid) {
               await sendVoiceResponse(response, callSid);
