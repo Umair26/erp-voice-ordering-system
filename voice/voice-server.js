@@ -1,10 +1,12 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+
 const express = require('express');
 const { WebSocketServer } = require('ws');
 const twilio = require('twilio');
+const twilioRoute = require('./routes/twilioWebhook');
 const { startDeepgramStream } = require('./services/deepgramService');
 const { newCallState, updateState } = require('./services/callState');
-const { startCall, getCall, updateCall, endCall } = require('./services/callTracker');
-
+const { startCall, updateCall, endCall } = require('./services/callTracker');
 
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -13,18 +15,24 @@ const twilioClient = twilio(
 
 const callStates = new Map();
 
+// Use Polly Neural voices for natural sound
+function getTwilioVoice(language) {
+  return language === 'DE' ? 'Polly.Vicki-Neural' : 'Polly.Joanna-Neural';
+}
+
 function isFinalMessage(text) {
   return /\b(goodbye|bye|auf wiedersehen|tschüss|session has ended)\b/i.test(text);
 }
 
-async function sendVoiceResponse(text, callSid) {
+async function sendVoiceResponse(text, callSid, language = 'EN') {
   try {
-    console.log(`🔊 Response: "${text}"`);
+    console.log(`🔊 Response [${language}]: "${text}"`);
     const domain = process.env.DOMAIN;
+    const voice = getTwilioVoice(language);
     const final = isFinalMessage(text);
     const twiml = final
-      ? `<Response><Say>${text}</Say><Hangup/></Response>`
-      : `<Response><Say>${text}</Say><Connect><Stream url="wss://${domain}/audio-stream"/></Connect></Response>`;
+      ? `<Response><Say voice="${voice}">${text}</Say><Hangup/></Response>`
+      : `<Response><Say voice="${voice}">${text}</Say><Connect><Stream url="wss://${domain}/audio-stream"><Parameter name="language" value="${language}"/></Stream></Connect></Response>`;
     await twilioClient.calls(callSid).update({ twiml });
     console.log(final ? '📴 Goodbye — hanging up' : '✅ TwiML sent');
   } catch (err) {
@@ -33,69 +41,64 @@ async function sendVoiceResponse(text, callSid) {
 }
 
 function initVoiceServer(app, server) {
-  app.post('/incoming-call', (req, res) => {
-    const domain = process.env.DOMAIN;
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say>Welcome to the ordering system. Please state your customer ID or email.</Say>
-  <Connect>
-    <Stream url="wss://${domain}/audio-stream"/>
-  </Connect>
-</Response>`;
-    res.type('text/xml').send(twiml);
-  });
+  // Mount Twilio webhook routes
+app.use('/incoming-call', twilioRoute);
+app.use('/language-select', twilioRoute);
 
-  // Twilio status callback — fired when call ends, gives us duration
-app.post('/call-status', express.urlencoded({ extended: false }), (req, res) => {
-  console.log('📊 Raw body:', JSON.stringify(req.body));
-  const { CallSid, CallDuration, CallStatus } = req.body;
-  if (CallSid && CallDuration) {
-    endCall(CallSid, parseInt(CallDuration));
-  }
-  res.sendStatus(200);
-});
+  // Call status callback fnodrom Twilio
+  app.post('/call-status', express.urlencoded({ extended: false }), (req, res) => {
+    console.log('📊 Raw body:', JSON.stringify(req.body));
+    const { CallSid, CallDuration, CallStatus } = req.body;
+    if (CallSid && CallDuration) {
+      endCall(CallSid, parseInt(CallDuration));
+      console.log(`📊 Call ended: ${CallSid} | Duration: ${CallDuration}s`);
+    } else if (CallSid) {
+      // Update status even without duration
+      updateCall(CallSid, { status: CallStatus || 'unknown' });
+    }
+    res.sendStatus(200);
+  });
 
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-app.post('/api/inject-text', async (req, res) => {
-  const { text } = req.body;
-  if (!text) return res.status(400).json({ error: 'No text provided' });
+  // Text injection for testing
+  app.post('/api/inject-text', async (req, res) => {
+    const { text } = req.body;
+    if (!text) return res.status(400).json({ error: 'No text provided' });
 
-  const entries = [...callStates.entries()];
-  if (!entries.length) return res.status(404).json({ error: 'No active call' });
+    const entries = [...callStates.entries()];
+    if (!entries.length) return res.status(404).json({ error: 'No active call' });
 
-  const [callSid, state] = entries[entries.length - 1];
-  console.log(`⌨ Text injection: "${text}" → CallSid: ${callSid}`);
+    const [callSid, state] = entries[entries.length - 1];
+    console.log(`⌨ Text injection: "${text}" → CallSid: ${callSid}`);
 
-  try {
-    const response = await updateState(state, text);
+    try {
+      const response = await updateState(state, text);
 
-    // Track customer
-    if (state.customer && callSid) {
-      updateCall(callSid, { customer: state.customer.customer_name });
+      if (state.customer && callSid) {
+        updateCall(callSid, { customer: state.customer.customer_name });
+      }
+
+      console.log(`🔍 State after update: ${state.state} | lastOrder: ${JSON.stringify(state.lastOrder)}`);
+      if (state.state === 'DONE' && state.lastOrder && callSid) {
+        updateCall(callSid, {
+          orderPlaced: true,
+          orderId: state.lastOrder.order_id,
+          orderTotal: state.lastOrder.total_price || 0,
+        });
+        console.log(`✅ Order tracked: ${state.lastOrder.order_id}`);
+      }
+
+      const lang = state.language || 'EN';
+      if (response) await sendVoiceResponse(response, callSid, lang);
+      res.json({ ok: true, response });
+    } catch (e) {
+      console.error('❌ Text injection error:', e.message);
+      res.status(500).json({ error: e.message });
     }
+  });
 
-    // Track order
-    console.log(`🔍 State: ${state.state} | lastOrder: ${JSON.stringify(state.lastOrder)}`);
-    if (state.state === 'DONE' && state.lastOrder && callSid) {
-      updateCall(callSid, {
-        orderPlaced: true,
-        orderId: state.lastOrder.order_id,
-        orderTotal: state.lastOrder.total_price || 0,
-      });
-      console.log(`✅ Order tracked: ${state.lastOrder.order_id}`);
-    }
-
-    if (response) await sendVoiceResponse(response, callSid);
-    res.json({ ok: true, response });
-  } catch (e) {
-    console.error('❌ Text injection error:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-const wss = new WebSocketServer({ server, path: '/audio-stream' });
-  
+  const wss = new WebSocketServer({ server, path: '/audio-stream' });
 
   wss.on('connection', (ws) => {
     console.log('📲 New call connected via WebSocket');
@@ -104,8 +107,8 @@ const wss = new WebSocketServer({ server, path: '/audio-stream' });
     let callSid = null;
     let processing = false;
     let state = null;
+    let language = 'EN'; // default
     let deepgramSeconds = 0;
-    let streamStartTime = null;
 
     function startNewDeepgramStream() {
       try {
@@ -116,8 +119,10 @@ const wss = new WebSocketServer({ server, path: '/audio-stream' });
 
           console.log(`🎤 Transcript: "${transcript}"`);
 
-          if (/\b(goodbye|bye|ok goodbye|ok bye|good bye)\b/i.test(transcript)) {
-            await sendVoiceResponse('Thank you. Goodbye!', callSid);
+          // Customer goodbye
+          if (/\b(goodbye|bye|ok goodbye|auf wiedersehen|tschüss)\b/i.test(transcript)) {
+            const farewell = language === 'DE' ? 'Auf Wiedersehen!' : 'Thank you. Goodbye!';
+            await sendVoiceResponse(farewell, callSid, language);
             processing = false;
             return;
           }
@@ -125,38 +130,35 @@ const wss = new WebSocketServer({ server, path: '/audio-stream' });
           try {
             const response = await updateState(state, transcript);
 
-            // Track customer name when identified
             if (state.customer && callSid) {
               updateCall(callSid, { customer: state.customer.customer_name });
             }
 
-           // After updateState call, add:
-           console.log(`🔍 State after update: ${state.state} | lastOrder: ${JSON.stringify(state.lastOrder)}`);
-if (state.state === 'DONE' && state.lastOrder && callSid) {
-  updateCall(callSid, {
-    orderPlaced: true,
-    orderId: state.lastOrder.order_id,
-    orderTotal: state.lastOrder.total_price || 0,
-  });
-  console.log(`✅ Order tracked: ${state.lastOrder.order_id}`);
-}
+            if (state.state === 'DONE' && state.lastOrder && callSid) {
+              updateCall(callSid, {
+                orderPlaced: true,
+                orderId: state.lastOrder.order_id,
+                orderTotal: state.lastOrder.total_price || 0,
+              });
+            }
 
             if (response && callSid) {
-              await sendVoiceResponse(response, callSid);
+              await sendVoiceResponse(response, callSid, language);
             }
           } catch (err) {
             console.error('❌ Error in updateState:', err.message);
-            if (callSid) await sendVoiceResponse('There was an error. Please try again.', callSid);
+            const errMsg = language === 'DE'
+              ? 'Es gab einen Fehler. Bitte versuchen Sie es erneut.'
+              : 'There was an error. Please try again.';
+            if (callSid) await sendVoiceResponse(errMsg, callSid, language);
           }
 
           processing = false;
-        });
+        }, language);
       } catch (err) {
         console.error('❌ Failed to start Deepgram stream:', err.message);
       }
     }
-
-    startNewDeepgramStream();
 
     ws.on('message', async (msg) => {
       try {
@@ -168,32 +170,40 @@ if (state.state === 'DONE' && state.lastOrder && callSid) {
 
         if (data.event === 'start') {
           callSid = data.start?.callSid;
-          streamStartTime = Date.now();
+
+          // Extract language from stream parameters
+          const params = data.start?.customParameters || {};
+          language = params.language || 'EN';
+          console.log(`📡 Stream started — CallSid: ${callSid} | Language: ${language}`);
 
           if (!callStates.has(callSid)) {
-            callStates.set(callSid, newCallState());
-            startCall(callSid); // ← start tracking
+            const newState = newCallState();
+            newState.language = language;
+            callStates.set(callSid, newState);
+            startCall(callSid);
+            updateCall(callSid, { language });
             console.log(`📡 New call — CallSid: ${callSid}`);
           } else {
-            console.log(`📡 Reconnected — CallSid: ${callSid} | State: ${callStates.get(callSid).state}`);
+            const existingState = callStates.get(callSid);
+            language = existingState.language || language;
+            console.log(`📡 Reconnected — CallSid: ${callSid} | State: ${existingState.state} | Lang: ${language}`);
           }
 
           state = callStates.get(callSid);
+          startNewDeepgramStream();
         }
 
         if (data.event === 'media') {
           if (!dgStream || !state) return;
           const audio = Buffer.from(data.media.payload, 'base64');
           dgStream.send(audio);
-          // Track Deepgram audio duration (each mulaw chunk = 20ms)
           deepgramSeconds += 0.02;
         }
 
         if (data.event === 'stop') {
           console.log('🛑 Twilio stream stopped');
-          if (callSid) {
-            updateCall(callSid, { deepgramSeconds: Math.round(deepgramSeconds) });
-          }
+          if (callSid) updateCall(callSid, { deepgramSeconds: Math.round(deepgramSeconds) });
+          if (dgStream) { try { dgStream.finish(); } catch (_) {} }
         }
 
       } catch (err) {

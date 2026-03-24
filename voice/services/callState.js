@@ -12,9 +12,11 @@ const STATES = {
 function newCallState() {
   return {
     state: STATES.IDENTIFY,
+    language: 'EN',
     customer: null,
     cart: [],
     currentItem: null,
+    lastOrder: null,
   };
 }
 
@@ -56,13 +58,10 @@ function wordsToDigits(text) {
     .replace(/\bfünfunddreißig\b/gi, '35').replace(/\bvierunddreißig\b/gi, '34')
     .replace(/\bdreiundrei\w*ig\b/gi, '33').replace(/\bzweiunddreißig\b/gi, '32')
     .replace(/\beinunddreißig\b/gi, '31')
-    .replace(/\bneunundзwanzig\b/gi, '29').replace(/\bneunundzwanzig\b/gi, '29')
-    .replace(/\bachtundzwanzig\b/gi, '28').replace(/\bsiebenundzwanzig\b/gi, '27')
-    .replace(/\bsechsundzwanzig\b/gi, '26').replace(/\bfünfundzwanzig\b/gi, '25')
-    .replace(/\bvierundzwanzig\b/gi, '24').replace(/\bdreiundзwanzig\b/gi, '23')
-    .replace(/\bdreiунdzwanzig\b/gi, '23').replace(/\bdreiунdzwanzig\b/gi, '23')
-    .replace(/\bdreiundзwanzig\b/gi, '23').replace(/\bdreiundswanzig\b/gi, '23')
-    .replace(/\bdreiунdzwanzig\b/gi, '23')
+    .replace(/\bneunundzwanzig\b/gi, '29').replace(/\bachtundzwanzig\b/gi, '28')
+    .replace(/\bsiebenundzwanzig\b/gi, '27').replace(/\bsechsundzwanzig\b/gi, '26')
+    .replace(/\bfünfundzwanzig\b/gi, '25').replace(/\bvierundzwanzig\b/gi, '24')
+    .replace(/\bdreiundзwanzig\b/gi, '23').replace(/\bdreiundzwanzig\b/gi, '23')
     .replace(/\bzweiundzwanzig\b/gi, '22').replace(/\beinundzwanzig\b/gi, '21')
     // German tens
     .replace(/\bneunzig\b/gi, '90').replace(/\bachtzig\b/gi, '80')
@@ -76,7 +75,7 @@ function wordsToDigits(text) {
     .replace(/\bdreizehn\b/gi, '13').replace(/\bzwölf\b/gi, '12')
     .replace(/\belf\b/gi, '11').replace(/\bzehn\b/gi, '10')
     // German singles
-    .replace(/\bnull\b/gi, '0').replace(/\bein\b/gi, '1').replace(/\beine\b/gi, '1')
+    .replace(/\bnull\b/gi, '0').replace(/\beine\b/gi, '1').replace(/\bein\b/gi, '1')
     .replace(/\bzwei\b/gi, '2').replace(/\bdrei\b/gi, '3').replace(/\bvier\b/gi, '4')
     .replace(/\bfünf\b/gi, '5').replace(/\bsechs\b/gi, '6').replace(/\bsieben\b/gi, '7')
     .replace(/\bacht\b/gi, '8').replace(/\bneun\b/gi, '9')
@@ -143,17 +142,16 @@ function wordsToDigits(text) {
 function wordsToNumber(text) {
   const lower = text.toLowerCase();
 
-  // German compounds (und-form)
   const deCompounds = {
-    'einundzwanzig': 21, 'zweiundzwanzig': 22, 'dreiundswanzig': 23, 'vierundzwanzig': 24,
+    'einundzwanzig': 21, 'zweiundzwanzig': 22, 'dreiundzwanzig': 23, 'vierundzwanzig': 24,
     'fünfundzwanzig': 25, 'sechsundzwanzig': 26, 'siebenundzwanzig': 27, 'achtundzwanzig': 28, 'neunundzwanzig': 29,
-    'einunddreißig': 31, 'zweiunddreißig': 32, 'dreiунddreißig': 33, 'vierunddreißig': 34,
+    'einunddreißig': 31, 'zweiunddreißig': 32, 'dreiundreißig': 33, 'vierunddreißig': 34,
     'fünfunddreißig': 35, 'sechsunddreißig': 36, 'siebenunddreißig': 37, 'achtunddreißig': 38, 'neununddreißig': 39,
     'einundvierzig': 41, 'zweiundvierzig': 42, 'dreiundvierzig': 43, 'vierundvierzig': 44,
     'fünfundvierzig': 45, 'sechsundvierzig': 46, 'siebenundvierzig': 47, 'achtundvierzig': 48, 'neunundvierzig': 49,
     'einundfünfzig': 51, 'zweiundfünfzig': 52, 'dreiundfünfzig': 53, 'vierundfünfzig': 54,
     'fünfundfünfzig': 55, 'sechsundfünfzig': 56, 'siebenundfünfzig': 57, 'achtundfünfzig': 58, 'neunundfünfzig': 59,
-    'einundsechzig': 61, 'zweiundsechzig': 62, 'dreiунdsechzig': 63, 'vierundsechzig': 64,
+    'einundsechzig': 61, 'zweiundsechzig': 62, 'dreiundsechzig': 63, 'vierundsechzig': 64,
     'fünfundsechzig': 65, 'sechsundsechzig': 66, 'siebenundsechzig': 67, 'achtundsechzig': 68, 'neunundsechzig': 69,
     'einundsiebzig': 71, 'zweiundsiebzig': 72, 'dreiundsiebzig': 73, 'vierundsiebzig': 74,
     'fünfundsiebzig': 75, 'sechsundsiebzig': 76, 'siebenundsiebzig': 77, 'achtundsiebzig': 78, 'neunundsiebzig': 79,
@@ -166,7 +164,6 @@ function wordsToNumber(text) {
     if (lower.includes(word)) return val;
   }
 
-  // English compounds
   const enCompounds = {
     'twenty one': 21, 'twenty two': 22, 'twenty three': 23, 'twenty four': 24,
     'twenty five': 25, 'twenty six': 26, 'twenty seven': 27, 'twenty eight': 28, 'twenty nine': 29,
@@ -189,14 +186,11 @@ function wordsToNumber(text) {
     if (lower.includes(word)) return val;
   }
 
-  // Singles — English + German
   const singles = {
-    // English
     'ten': 10, 'ben': 10, 'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14,
     'fifteen': 15, 'sixteen': 16, 'seventeen': 17, 'eighteen': 18, 'nineteen': 19,
     'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50,
     'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90, 'hundred': 100,
-    // German
     'zehn': 10, 'elf': 11, 'zwölf': 12, 'dreizehn': 13, 'vierzehn': 14,
     'fünfzehn': 15, 'sechzehn': 16, 'siebzehn': 17, 'achtzehn': 18, 'neunzehn': 19,
     'zwanzig': 20, 'dreißig': 30, 'vierzig': 40, 'fünfzig': 50,
@@ -215,14 +209,12 @@ function extractCustomerId(transcript) {
   const converted = wordsToDigits(transcript);
   console.log(`🔄 Converted: "${converted}"`);
 
-  // Only match C + digits — never match other letters like A (article numbers)
   const cMatch = converted.match(/\bc\s*(\d[\s\d]*)/i);
   if (cMatch) {
     const digits = cMatch[1].replace(/\s+/g, '').slice(0, 3).padStart(3, '0');
     return `C${digits}`;
   }
 
-  // Fallback: isolated digits only — NOT preceded by any letter (rules out A007 etc.)
   const numMatch = converted.match(/(?<![a-zA-Z])(\d\s*\d\s*\d|\d\s*\d|\d)(?!\s*\d)/);
   if (numMatch) {
     const digits = numMatch[1].replace(/\s+/g, '').padStart(3, '0').slice(0, 3);
@@ -240,109 +232,90 @@ function extractQuantity(transcript) {
   return match ? parseInt(match[1]) : 1;
 }
 
-// Format price naturally for speech: 19.99 → "19 dollars and 99 cents", 235 → "235 dollars"
-function formatPrice(price) {
+function formatPrice(price, language = 'EN') {
   const dollars = Math.floor(price);
   const cents = Math.round((price - dollars) * 100);
+  if (language === 'DE') {
+    if (cents === 0) return `${dollars} Euro`;
+    return `${dollars} Euro und ${cents} Cent`;
+  }
   if (cents === 0) return `${dollars} dollars`;
   return `${dollars} dollars and ${cents} cents`;
 }
 
-// Convert order number digits to spoken words: "14496" → "one four four nine six"
 function speakOrderNumber(orderId) {
   const digits = orderId.replace('ORD-', '');
-  const digitWords = { '0':'zero','1':'one','2':'two','3':'three','4':'four',
-    '5':'five','6':'six','7':'seven','8':'eight','9':'nine' };
+  const digitWords = {
+    '0':'zero','1':'one','2':'two','3':'three','4':'four',
+    '5':'five','6':'six','7':'seven','8':'eight','9':'nine'
+  };
   return digits.split('').map(d => digitWords[d] || d).join(' ');
 }
 
-function cleanProductQuery(transcript) {
-  return transcript
-    .replace(/\b(i want|i need|get me|order|item|number|article|please|yeah|it's|its|add|also|and)\b/gi, ' ')
-    .replace(/\b(pcs?|pieces?|boxes?|units?)\b/gi, ' ')
-    .replace(/\d+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+function speakOrderNumberDE(orderId) {
+  const digits = orderId.replace('ORD-', '');
+  const digitWords = {
+    '0':'null','1':'eins','2':'zwei','3':'drei','4':'vier',
+    '5':'fünf','6':'sechs','7':'sieben','8':'acht','9':'neun'
+  };
+  return digits.split('').map(d => digitWords[d] || d).join(' ');
 }
 
-// Extract product intent from a mixed utterance like "yes please add gearbox lubricant"
 function extractProductFromMixed(transcript) {
   return transcript
-    .replace(/\b(yes|ja|sure|ok|okay|please|add|also|and|i want|i need|get me)\b/gi, ' ')
+    .replace(/\b(yes|ja|sure|ok|okay|please|add|also|und|und auch|ich möchte|ich brauche|bitte|gerne|get me)\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-}
-
-function spokenToEmail(text) {
-
-  const cleaned = text
-    .toLowerCase()
-    .replace(/.*\b(is|address is|email is)\s*/i, '')
-    .replace(/\bit'?s\s*/i, '')
-    .replace(/\byeah\.?\s*/i, '')
-    .replace(/\s+(at the rate|direct|geret|iterate|directed|at)\s+/g, '@')
-    .replace(/\s+dot\s+/g, '.')
-    .replace(/\s+/g, '')
-    .replace(/\.form$/g, '.com')
-    .replace(/\.calm$/g, '.com')
-    .replace(/\.come$/g, '.com')
-    .replace(/\.con$/g, '.com');
-  return cleaned.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/)?.[0] || null;
 }
 
 async function updateState(state, transcript) {
   const text = transcript.toLowerCase().trim();
-  console.log(`📊 State: ${state.state} | Input: "${transcript}"`);
+  const de = state.language === 'DE' || state.customer?.language === 'DE';
+  console.log(`📊 State: ${state.state} | Lang: ${state.language} | Input: "${transcript}"`);
 
   // ── IDENTIFY ──
   if (state.state === STATES.IDENTIFY) {
-    // Check for email — typed or spoken ("d dot wilson at gmail dot com")
-    // In IDENTIFY, before lookupParam:
-const emailAddress = 
-  transcript.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] 
-  || spokenToEmail(transcript);
+    const customerId = extractCustomerId(transcript);
+    console.log(`🔍 Extracted customer ID: ${customerId}`);
 
-// Skip if transcript has no useful info
-if (!emailAddress && !extractCustomerId(transcript)) {
-  return null; // stay silent, wait for more input
-}
-    const lookupParam = emailAddress
-      ? { customer_email: emailAddress }
-      : { customer_id: extractCustomerId(transcript) };
-
-    console.log(`🔍 Lookup: ${JSON.stringify(lookupParam)}`);
-
-    if (lookupParam.customer_id || lookupParam.customer_email) {
-      try {
-        const customer = await lookupCustomer(lookupParam.customer_id || lookupParam.customer_email);
-        if (customer && customer.found) {
-          state.customer = customer;
-          state.state = STATES.ORDER;
-          const de = customer.language === 'DE';
-          return de
-            ? `Guten Tag ${customer.customer_name}. Was möchten Sie bestellen?`
-            : `Hello ${customer.customer_name}, welcome. What would you like to order today?`;
-        }
-      } catch (e) {
-        console.error('Customer lookup error:', e.message);
-      }
+    if (!customerId) {
+      return de
+        ? 'Ich konnte Ihre Kundennummer nicht verstehen. Bitte nennen Sie Ihre Kundennummer.'
+        : 'I could not understand your customer ID. Please say your customer ID starting with C.';
     }
-    return "I could not find your account. Please say your customer ID, for Starts from C, or your email address.";
+
+    try {
+      const customer = await lookupCustomer(customerId);
+      if (customer && customer.found) {
+        state.customer = customer;
+        state.state = STATES.ORDER;
+        // Use customer's language from ERP if available
+        if (customer.language) state.language = customer.language;
+        const isDE = state.language === 'DE';
+        return isDE
+          ? `Guten Tag ${customer.customer_name}. Was möchten Sie bestellen?`
+          : `Hello ${customer.customer_name}, welcome. What would you like to order today?`;
+      }
+    } catch (e) {
+      console.error('Customer lookup error:', e.message);
+    }
+
+    return de
+      ? 'Kunde nicht gefunden. Bitte versuchen Sie es erneut mit Ihrer Kundennummer.'
+      : 'Customer not found. Please try again with your customer ID starting with C.';
   }
 
   // ── ORDER ──
   if (state.state === STATES.ORDER) {
-    const de = state.customer?.language === 'DE';
-
-    // Check if customer says nothing/done/no more
-    const nothingIntent = /\b(nothing|no more|that'?s all|done|finished|no|nein|nichts)\b/i.test(text);
+    // Nothing/done intent — EN + DE
+    const nothingIntent = /\b(nothing|no more|that'?s all|done|finished|nichts|das war alles|fertig|nein danke)\b/i.test(text);
     if (nothingIntent) {
       if (state.cart.length > 0) {
         state.state = STATES.CONFIRM;
         const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
-        const summary = state.cart.map(i => `${i.quantity} ${i.item.item_title}`).join(', ');
+        const summary = state.cart.map(i => `${i.quantity} ${de ? i.item.item_title_DE || i.item.item_title : i.item.item_title}`).join(', ');
         return de
-          ? `Sie haben folgendes im Warenkorb: ${summary}. Gesamt: ${formatPrice(totalAmount)}. Soll ich bestellen?`
+          ? `Sie haben folgendes im Warenkorb: ${summary}. Gesamt: ${formatPrice(totalAmount, 'DE')}. Soll ich bestellen?`
           : `You have ${summary} in your cart. Total is ${formatPrice(totalAmount)}. Shall I place the order?`;
       } else {
         return de
@@ -363,22 +336,23 @@ if (!emailAddress && !extractCustomerId(transcript)) {
       }
     }
 
-    // Semantic search fallback
     if (!item) {
       const { searchProduct } = require('./semanticSearch');
-      item = await searchProduct(transcript);
+      item = await searchProduct(transcript, de ? 'DE' : 'EN');
     }
 
     if (item && item.found) {
       if (item.availability_status === 'Out of stock') {
+        const title = de ? (item.item_title_DE || item.item_title) : item.item_title;
         return de
-          ? `${item.item_title} ist leider nicht auf Lager. Möchten Sie etwas anderes?`
-          : `${item.item_title} is out of stock. Would you like something else?`;
+          ? `${title} ist leider nicht auf Lager. Möchten Sie etwas anderes?`
+          : `${title} is out of stock. Would you like something else?`;
       }
       state.currentItem = item;
       state.state = STATES.QUANTITY;
+      const title = de ? (item.item_title_DE || item.item_title) : item.item_title;
       return de
-        ? `Ich habe ${item.item_title} gefunden. Wie viele möchten Sie?`
+        ? `Ich habe ${title} gefunden. Wie viele möchten Sie?`
         : `I found ${item.item_title}. How many would you like?`;
     }
 
@@ -389,7 +363,6 @@ if (!emailAddress && !extractCustomerId(transcript)) {
 
   // ── QUANTITY ──
   if (state.state === STATES.QUANTITY) {
-    const de = state.customer?.language === 'DE';
     const qty = extractQuantity(transcript);
 
     if (qty > 0 && state.currentItem) {
@@ -398,13 +371,15 @@ if (!emailAddress && !extractCustomerId(transcript)) {
         article_number: state.currentItem.article_number,
         quantity: qty,
         item: state.currentItem,
+        item_title_DE: state.currentItem.item_title_DE,
         total_price: totalPrice,
       });
       state.currentItem = null;
       state.state = STATES.ADD_MORE;
       const lastItem = state.cart[state.cart.length - 1];
+      const title = de ? (lastItem.item_title_DE || lastItem.item.item_title) : lastItem.item.item_title;
       return de
-        ? `${qty} ${lastItem.item.item_title} wurde hinzugefügt. Möchten Sie noch etwas bestellen?`
+        ? `${qty} ${title} wurde hinzugefügt. Möchten Sie noch etwas bestellen?`
         : `Got it, ${qty} ${lastItem.item.item_title} added. Would you like to add another item?`;
     }
 
@@ -415,30 +390,29 @@ if (!emailAddress && !extractCustomerId(transcript)) {
 
   // ── ADD MORE ──
   if (state.state === STATES.ADD_MORE) {
-    const de = state.customer?.language === 'DE';
-    const yes = /\b(yes|ja|more|add|another|other|want|sure|also)\b/i.test(text);
-    const no  = /\b(no|nein|done|finished|that'?s|nothing|complete|confirm|place|order)\b/i.test(text);
+    const yes = /\b(yes|ja|more|add|another|other|want|sure|also|noch|weitere|mehr)\b/i.test(text);
+    const no  = /\b(no|nein|done|finished|that'?s|nothing|complete|confirm|place|order|fertig|nein danke|das war alles)\b/i.test(text);
 
     if (no) {
       state.state = STATES.CONFIRM;
       const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
-      const summary = state.cart.map(i => `${i.quantity} ${i.item.item_title}`).join(', ');
+      const summary = state.cart.map(i => {
+        const title = de ? (i.item_title_DE || i.item.item_title) : i.item.item_title;
+        return `${i.quantity} ${title}`;
+      }).join(', ');
       return de
-        ? `Zusammenfassung: ${summary}. Gesamt: ${formatPrice(totalAmount)}. Soll ich bestellen?`
+        ? `Zusammenfassung: ${summary}. Gesamt: ${formatPrice(totalAmount, 'DE')}. Soll ich die Bestellung aufgeben?`
         : `Your order has ${summary}. Total is ${formatPrice(totalAmount)}. Shall I place the order?`;
     }
 
-    // If they say yes AND mention a product in the same utterance, go straight to ORDER
     if (yes) {
-      // Check if they also mentioned a product name in the same sentence
       const productHint = extractProductFromMixed(transcript);
       const hasProduct = productHint.length > 3 &&
-        !/^(yes|ja|sure|ok|okay|please|add|more|another)$/i.test(productHint.trim());
+        !/^(yes|ja|sure|ok|okay|please|add|more|another|noch|mehr)$/i.test(productHint.trim());
 
       state.state = STATES.ORDER;
 
       if (hasProduct) {
-        // Process it immediately as an order query
         return await updateState(state, productHint);
       }
 
@@ -450,9 +424,8 @@ if (!emailAddress && !extractCustomerId(transcript)) {
 
   // ── CONFIRM ──
   if (state.state === STATES.CONFIRM) {
-    const de = state.customer?.language === 'DE';
-    const yes = /\b(yes|ja|correct|confirm|proceed|go|ok|okay|place|sure)\b/i.test(text);
-    const no  = /\b(no|nein|cancel|back|change|modify)\b/i.test(text);
+    const yes = /\b(yes|ja|correct|confirm|proceed|go|ok|okay|place|sure|bestellen|ja bitte|jawohl)\b/i.test(text);
+    const no  = /\b(no|nein|cancel|back|change|modify|abbrechen|ändern)\b/i.test(text);
 
     if (yes) {
       try {
@@ -462,30 +435,34 @@ if (!emailAddress && !extractCustomerId(transcript)) {
         );
         state.state = STATES.DONE;
         if (order.order_created) {
-          state.lastOrder = order; 
+          state.lastOrder = order;
           const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
-          const spokenId = speakOrderNumber(order.order_id);
+          const spokenId = de ? speakOrderNumberDE(order.order_id) : speakOrderNumber(order.order_id);
           return de
-            ? `Ihre Bestellung Nummer ${spokenId} wurde aufgegeben. Gesamt: ${formatPrice(totalAmount)}. Auf Wiedersehen!`
+            ? `Ihre Bestellung Nummer ${spokenId} wurde aufgegeben. Gesamt: ${formatPrice(totalAmount, 'DE')}. Auf Wiedersehen!`
             : `Your order number ${spokenId} has been placed. Total is ${formatPrice(totalAmount)}. Thank you, goodbye!`;
         }
       } catch (e) {
         console.error('Order error:', e.message);
       }
-      return 'Sorry, there was an error placing your order. Goodbye.';
+      return de
+        ? 'Es tut uns leid, es gab einen Fehler. Auf Wiedersehen.'
+        : 'Sorry, there was an error placing your order. Goodbye.';
     }
 
     if (no) {
       state.state = STATES.ORDER;
       state.cart = [];
-      return de ? 'Kein Problem. Was möchten Sie bestellen?' : 'No problem. What would you like to order?';
+      return de
+        ? 'Kein Problem. Was möchten Sie bestellen?'
+        : 'No problem. What would you like to order?';
     }
 
     return de ? 'Bitte sagen Sie Ja oder Nein.' : 'Please say yes or no.';
   }
 
   if (state.state === STATES.DONE) {
-    return 'Your session has ended. Goodbye.';
+    return de ? 'Ihre Sitzung ist beendet. Auf Wiedersehen.' : 'Your session has ended. Goodbye.';
   }
 
   return null;
