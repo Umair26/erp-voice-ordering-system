@@ -3,7 +3,6 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') }
 const express = require('express');
 const { WebSocketServer } = require('ws');
 const twilio = require('twilio');
-const twilioRoute = require('./routes/twilioWebhook');
 const { startDeepgramStream } = require('./services/deepgramService');
 const { newCallState, updateState } = require('./services/callState');
 const { startCall, updateCall, endCall } = require('./services/callTracker');
@@ -14,8 +13,8 @@ const twilioClient = twilio(
 );
 
 const callStates = new Map();
+const urlParser = express.urlencoded({ extended: false });
 
-// Use Polly Neural voices for natural sound
 function getTwilioVoice(language) {
   return language === 'DE' ? 'Polly.Vicki-Neural' : 'Polly.Joanna-Neural';
 }
@@ -41,19 +40,54 @@ async function sendVoiceResponse(text, callSid, language = 'EN') {
 }
 
 function initVoiceServer(app, server) {
-  // Mount Twilio webhook routes
-app.use('/incoming-call', twilioRoute);
-app.use('/language-select', twilioRoute);
 
-  // Call status callback fnodrom Twilio
-  app.post('/call-status', express.urlencoded({ extended: false }), (req, res) => {
+  // ── ROUTE 1: Incoming call — show language menu ──
+  app.post('/incoming-call', urlParser, (req, res) => {
+    const domain = process.env.DOMAIN;
+    console.log('📞 Incoming call received');
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Gather numDigits="1" action="https://${domain}/language-select" method="POST" timeout="10">
+    <Say voice="Polly.Joanna-Neural">Welcome to the ordering system. For English, press 1. Für Deutsch, drücken Sie 2.</Say>
+  </Gather>
+  <Say voice="Polly.Joanna-Neural">No input received. Goodbye.</Say>
+  <Hangup/>
+</Response>`;
+    res.type('text/xml').send(twiml);
+  });
+
+  // ── ROUTE 2: Language selected — start audio stream ──
+  app.post('/language-select', urlParser, (req, res) => {
+    const domain = process.env.DOMAIN;
+    const digit = req.body.Digits;
+    console.log(`🔢 Language digit received: "${digit}"`);
+
+    const isDE = digit === '2';
+    const voice = isDE ? 'Polly.Vicki-Neural' : 'Polly.Joanna-Neural';
+    const greeting = isDE
+      ? 'Willkommen. Bitte nennen Sie Ihre Kundennummer.'
+      : 'Welcome. Please say your customer ID.';
+
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="${voice}">${greeting}</Say>
+  <Connect>
+    <Stream url="wss://${domain}/audio-stream">
+      <Parameter name="language" value="${isDE ? 'DE' : 'EN'}"/>
+    </Stream>
+  </Connect>
+</Response>`;
+    res.type('text/xml').send(twiml);
+  });
+
+  // ── ROUTE 3: Call status callback ──
+  app.post('/call-status', urlParser, (req, res) => {
     console.log('📊 Raw body:', JSON.stringify(req.body));
     const { CallSid, CallDuration, CallStatus } = req.body;
     if (CallSid && CallDuration) {
       endCall(CallSid, parseInt(CallDuration));
       console.log(`📊 Call ended: ${CallSid} | Duration: ${CallDuration}s`);
     } else if (CallSid) {
-      // Update status even without duration
       updateCall(CallSid, { status: CallStatus || 'unknown' });
     }
     res.sendStatus(200);
@@ -61,7 +95,7 @@ app.use('/language-select', twilioRoute);
 
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-  // Text injection for testing
+  // ── ROUTE 4: Text injection for testing ──
   app.post('/api/inject-text', async (req, res) => {
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'No text provided' });
@@ -98,6 +132,7 @@ app.use('/language-select', twilioRoute);
     }
   });
 
+  // ── WEBSOCKET: Audio stream ──
   const wss = new WebSocketServer({ server, path: '/audio-stream' });
 
   wss.on('connection', (ws) => {
@@ -107,7 +142,7 @@ app.use('/language-select', twilioRoute);
     let callSid = null;
     let processing = false;
     let state = null;
-    let language = 'EN'; // default
+    let language = 'EN';
     let deepgramSeconds = 0;
 
     function startNewDeepgramStream() {
@@ -119,7 +154,6 @@ app.use('/language-select', twilioRoute);
 
           console.log(`🎤 Transcript: "${transcript}"`);
 
-          // Customer goodbye
           if (/\b(goodbye|bye|ok goodbye|auf wiedersehen|tschüss)\b/i.test(transcript)) {
             const farewell = language === 'DE' ? 'Auf Wiedersehen!' : 'Thank you. Goodbye!';
             await sendVoiceResponse(farewell, callSid, language);
@@ -170,8 +204,6 @@ app.use('/language-select', twilioRoute);
 
         if (data.event === 'start') {
           callSid = data.start?.callSid;
-
-          // Extract language from stream parameters
           const params = data.start?.customParameters || {};
           language = params.language || 'EN';
           console.log(`📡 Stream started — CallSid: ${callSid} | Language: ${language}`);
