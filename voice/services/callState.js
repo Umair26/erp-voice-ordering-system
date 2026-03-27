@@ -75,7 +75,7 @@ function wordsToDigits(text) {
     .replace(/\bdreizehn\b/gi, '13').replace(/\bzwölf\b/gi, '12')
     .replace(/\belf\b/gi, '11').replace(/\bzehn\b/gi, '10')
     // German singles
-    .replace(/\bnull\b/gi, '0').replace(/\beine\b/gi, '1').replace(/\bein\b/gi, '1')
+    .replace(/\bnull\b/gi, '0').replace(/\beins\b/gi, '1').replace(/\beine\b/gi, '1').replace(/\bein\b/gi, '1')
     .replace(/\bzwei\b/gi, '2').replace(/\bdrei\b/gi, '3').replace(/\bvier\b/gi, '4')
     .replace(/\bfünf\b/gi, '5').replace(/\bsechs\b/gi, '6').replace(/\bsieben\b/gi, '7')
     .replace(/\bacht\b/gi, '8').replace(/\bneun\b/gi, '9')
@@ -209,16 +209,21 @@ function extractCustomerId(transcript) {
   const converted = wordsToDigits(transcript);
   console.log(`🔄 Converted: "${converted}"`);
 
-  const cMatch = converted.match(/\bc\s*(\d[\s\d]*)/i);
-  if (cMatch) {
-    const digits = cMatch[1].replace(/\s+/g, '').slice(0, 3).padStart(3, '0');
-    return `C${digits}`;
+  // Find ALL C + digit matches, take the last complete one
+  const allMatches = [...converted.matchAll(/\bc\s*(\d[\s\d]*)/gi)];
+  if (allMatches.length > 0) {
+    // Use last match (most complete)
+    const lastMatch = allMatches[allMatches.length - 1];
+    const digits = lastMatch[1].replace(/\s+/g, '').slice(0, 3).padStart(3, '0');
+    const id = `C${digits}`;
+    if (id !== 'C000') return id; // never return C000
   }
 
   const numMatch = converted.match(/(?<![a-zA-Z])(\d\s*\d\s*\d|\d\s*\d|\d)(?!\s*\d)/);
   if (numMatch) {
     const digits = numMatch[1].replace(/\s+/g, '').padStart(3, '0').slice(0, 3);
-    return `C${digits}`;
+    const id = `C${digits}`;
+    if (id !== 'C000') return id;
   }
 
   return null;
@@ -438,16 +443,16 @@ async function updateState(state, transcript) {
           state.lastOrder = order;
           const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
           const spokenId = de ? speakOrderNumberDE(order.order_id) : speakOrderNumber(order.order_id);
-          return de
-            ? `Ihre Bestellung Nummer ${spokenId} wurde aufgegeben. Gesamt: ${formatPrice(totalAmount, 'DE')}. Auf Wiedersehen!`
-            : `Your order number ${spokenId} has been placed. Total is ${formatPrice(totalAmount)}. Thank you, goodbye!`;
-        }
+           return de
+    ? 'Auf Wiedersehen!'
+    : 'Thank you for calling. Goodbye!';
+    }
       } catch (e) {
         console.error('Order error:', e.message);
       }
       return de
-        ? 'Es tut uns leid, es gab einen Fehler. Auf Wiedersehen.'
-        : 'Sorry, there was an error placing your order. Goodbye.';
+  ? 'Es tut uns leid, es gab einen Fehler. Auf Wiedersehen!'
+  : 'Sorry, there was an error placing your order. Thank you, goodbye!';
     }
 
     if (no) {
