@@ -137,13 +137,12 @@ function extractArticleNumber(text) {
 
   // KEY FIX: match letter + up to 4 spaced single digits OR multi-digit groups
   // Handles: A010, A 010, A 0 10, A 0 1 0, A010, a010 etc.
-  const match = converted.match(
-    /\b([A-Za-z])\s*(\d(?:\s*\d){0,3})\b/
-  );
-  if (match) {
-    const digits = match[2].replace(/\s+/g, '');
-    // Reject if more than 3 digits (e.g. accidental match on quantity)
-    if (digits.length > 3) return null;
+ const match = converted.match(
+  /\b([A-Za-z])\s*((?:\d+\s*){1,4})\b/
+);
+if (match) {
+  const digits = match[2].replace(/\s+/g, '');
+  if (digits.length > 4) return null;  // allow up to 4 chars before padding
     const num = parseInt(digits, 10);
     if (!isNaN(num) && num >= 1 && num <= 999) {
       return `${match[1].toUpperCase()}${String(num).padStart(3, '0')}`;
