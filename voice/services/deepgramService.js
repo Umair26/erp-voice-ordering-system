@@ -14,12 +14,23 @@ function startDeepgramStream(onTranscript, language = 'EN') {
     sample_rate: 8000,
     punctuate: true,
     interim_results: true,
-    endpointing: 500,
+    endpointing: 300,           // reduced from 500 → faster endpointing
+    utterance_end_ms: 1000,     // fire UtteranceEnd after 1s silence
   });
 
   let accumulatedText = '';
   let silenceTimer = null;
-  const SILENCE_DELAY = 3500;
+  let utteranceFired = false;
+  const SILENCE_DELAY = 1200;   // reduced from 3000 → much faster response
+
+  function fireTranscript() {
+    if (accumulatedText && !utteranceFired) {
+      utteranceFired = true;
+      console.log(`✅ Final input: "${accumulatedText}"`);
+      onTranscript(accumulatedText);
+      accumulatedText = '';
+    }
+  }
 
   live.on(LiveTranscriptionEvents.Open, () => {
     console.log('🎙️  Deepgram connection open');
@@ -31,18 +42,20 @@ function startDeepgramStream(onTranscript, language = 'EN') {
     if (!text) return;
 
     if (data.is_final) {
+      utteranceFired = false;
       accumulatedText = (accumulatedText + ' ' + text).trim();
       console.log(`📝 Accumulated: "${accumulatedText}"`);
 
       if (silenceTimer) clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(() => {
-        if (accumulatedText) {
-          console.log(`✅ Final input: "${accumulatedText}"`);
-          onTranscript(accumulatedText);
-          accumulatedText = '';
-        }
-      }, SILENCE_DELAY);
+      silenceTimer = setTimeout(fireTranscript, SILENCE_DELAY);
     }
+  });
+
+  // UtteranceEnd fires when Deepgram is confident the speaker has stopped
+  live.on(LiveTranscriptionEvents.UtteranceEnd, () => {
+    console.log('🔚 UtteranceEnd received');
+    if (silenceTimer) clearTimeout(silenceTimer);
+    fireTranscript();
   });
 
   live.on(LiveTranscriptionEvents.Error, (err) => {

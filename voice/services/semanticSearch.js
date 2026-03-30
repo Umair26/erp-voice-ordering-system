@@ -60,7 +60,7 @@ function wordsToDigits(text) {
     .replace(/\bdreizehn\b/gi, '13').replace(/\bzwölf\b/gi, '12')
     .replace(/\belf\b/gi, '11').replace(/\bzehn\b/gi, '10')
     // German singles
-    .replace(/\bnull\b/gi, '0').replace(/\beine\b/gi, '1').replace(/\bein\b/gi, '1')
+    .replace(/\bnull\b/gi, '0').replace(/\beins\b/gi, '1').replace(/\beine\b/gi, '1').replace(/\bein\b/gi, '1')
     .replace(/\bzwei\b/gi, '2').replace(/\bdrei\b/gi, '3').replace(/\bvier\b/gi, '4')
     .replace(/\bfünf\b/gi, '5').replace(/\bsechs\b/gi, '6').replace(/\bsieben\b/gi, '7')
     .replace(/\bacht\b/gi, '8').replace(/\bneun\b/gi, '9')
@@ -127,17 +127,23 @@ function wordsToDigits(text) {
 function extractArticleNumber(text) {
   let converted = wordsToDigits(text);
 
-  // Handle "eight" misheard as letter A before digit groups
+  // Fix "eight" / "acht" misheard as letter A (already converted to 8 by wordsToDigits)
+  // e.g. "8 0 1 0" → "A010"
   converted = converted
     .replace(/s\s*8\s*(\d)\s*(\d)\s*(\d)\b/gi, (_, a, b, c) => `A${a}${b}${c}`)
     .replace(/\b8\s*(\d)\s*(\d)\s*(\d)\b/gi,   (_, a, b, c) => `A${a}${b}${c}`);
 
   console.log(`🔄 Article search in: "${converted}"`);
 
-  // Match letter + spaced digits: A006, A 0 0 6, A 0 06
-  const match = converted.match(/\b([A-Za-z])\s*(\d\s*\d\s*\d|\d\s*\d|\d{1,3})\b/);
+  // KEY FIX: match letter + up to 4 spaced single digits OR multi-digit groups
+  // Handles: A010, A 010, A 0 10, A 0 1 0, A010, a010 etc.
+  const match = converted.match(
+    /\b([A-Za-z])\s*(\d(?:\s*\d){0,3})\b/
+  );
   if (match) {
     const digits = match[2].replace(/\s+/g, '');
+    // Reject if more than 3 digits (e.g. accidental match on quantity)
+    if (digits.length > 3) return null;
     const num = parseInt(digits, 10);
     if (!isNaN(num) && num >= 1 && num <= 999) {
       return `${match[1].toUpperCase()}${String(num).padStart(3, '0')}`;
@@ -150,7 +156,6 @@ function extractArticleNumber(text) {
 async function searchProduct(query, language = 'EN') {
   console.log(`🔍 searchProduct: "${query}" | lang: ${language}`);
 
-  // First try article number extraction
   const articleNumber = extractArticleNumber(query);
   if (articleNumber) {
     console.log(`🎯 Trying article number: ${articleNumber}`);
@@ -167,7 +172,7 @@ async function searchProduct(query, language = 'EN') {
     }
   }
 
-  // Then try keyword search
+  // Keyword search fallback
   const cleaned = wordsToDigits(query)
     .toLowerCase()
     .replace(/(yeah|i want|i need|get me|order|item|number|article|please|it's|its|ich möchte|ich brauche|bitte|gerne)/gi, ' ')
