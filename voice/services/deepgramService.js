@@ -21,7 +21,7 @@ function startDeepgramStream(onTranscript, language = 'EN') {
   let accumulatedText = '';
   let silenceTimer = null;
   let utteranceFired = false;
-  const SILENCE_DELAY = 1200;   // reduced from 3000 → much faster response
+  const SILENCE_DELAY = 1000;   // reduced from 3000 → much faster response
 
   function fireTranscript() {
     if (accumulatedText && !utteranceFired) {
