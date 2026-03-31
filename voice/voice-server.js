@@ -41,23 +41,23 @@ async function sendVoiceResponse(text, callSid, language = 'EN') {
 
 function initVoiceServer(app, server) {
 
-  // ── ROUTE 1: Incoming call — show language menu ──
+ // ── ROUTE 1: Incoming call — direct to audio stream ──
   app.post('/incoming-call', urlParser, (req, res) => {
     const domain = process.env.DOMAIN;
     console.log('📞 Incoming call received');
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather numDigits="1" action="https://${domain}/language-select" method="POST" timeout="10">
-    <Say voice="Polly.Joanna-Neural">Welcome to the ordering system. For English, press 1. Für Deutsch, drücken Sie 2.</Say>
-  </Gather>
-  <Say voice="Polly.Joanna-Neural">No input received. Goodbye.</Say>
-  <Hangup/>
+  <Say voice="Polly.Joanna-Neural">Welcome to the ordering system. Please say your customer ID.</Say>
+  <Connect>
+    <Stream url="wss://${domain}/audio-stream">
+      <Parameter name="language" value="EN"/>
+    </Stream>
+  </Connect>
 </Response>`;
     res.type('text/xml').send(twiml);
   });
 
-
-  // ── ROUTE 3: Call status callback ──
+  // ── ROUTE 2: Call status callback ──
   app.post('/call-status', urlParser, (req, res) => {
     console.log('📊 Raw body:', JSON.stringify(req.body));
     const { CallSid, CallDuration, CallStatus } = req.body;
