@@ -56,29 +56,6 @@ function initVoiceServer(app, server) {
     res.type('text/xml').send(twiml);
   });
 
-  // ── ROUTE 2: Language selected — start audio stream ──
-  app.post('/language-select', urlParser, (req, res) => {
-    const domain = process.env.DOMAIN;
-    const digit = req.body.Digits;
-    console.log(`🔢 Language digit received: "${digit}"`);
-
-    const isDE = digit === '2';
-    const voice = isDE ? 'Polly.Vicki-Neural' : 'Polly.Joanna-Neural';
-    const greeting = isDE
-      ? 'Willkommen. Bitte nennen Sie Ihre Kundennummer.'
-      : 'Welcome. Please say your customer ID.';
-
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="${voice}">${greeting}</Say>
-  <Connect>
-    <Stream url="wss://${domain}/audio-stream">
-      <Parameter name="language" value="${isDE ? 'DE' : 'EN'}"/>
-    </Stream>
-  </Connect>
-</Response>`;
-    res.type('text/xml').send(twiml);
-  });
 
   // ── ROUTE 3: Call status callback ──
   app.post('/call-status', urlParser, (req, res) => {
