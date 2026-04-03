@@ -127,22 +127,18 @@ function wordsToDigits(text) {
 function extractArticleNumber(text) {
   let converted = wordsToDigits(text);
 
-  // Fix "eight" / "acht" misheard as letter A (already converted to 8 by wordsToDigits)
-  // e.g. "8 0 1 0" → "A010"
+  // Fix German Deepgram mishearing "C" as "ZEE", "ZE", "SEE", "SE", "TSEE"
   converted = converted
+    .replace(/\b(zee|zeh|ze|see|se|tsee|zee)\s*/gi, 'C ')
     .replace(/s\s*8\s*(\d)\s*(\d)\s*(\d)\b/gi, (_, a, b, c) => `A${a}${b}${c}`)
     .replace(/\b8\s*(\d)\s*(\d)\s*(\d)\b/gi,   (_, a, b, c) => `A${a}${b}${c}`);
 
   console.log(`🔄 Article search in: "${converted}"`);
 
-  // KEY FIX: match letter + up to 4 spaced single digits OR multi-digit groups
-  // Handles: A010, A 010, A 0 10, A 0 1 0, A010, a010 etc.
- const match = converted.match(
-  /\b([A-Za-z])\s*((?:\d+\s*){1,4})\b/
-);
-if (match) {
-  const digits = match[2].replace(/\s+/g, '');
-  if (digits.length > 4) return null;  // allow up to 4 chars before padding
+  const match = converted.match(/\b([A-Za-z])\s*((?:\d+\s*){1,4})\b/);
+  if (match) {
+    const digits = match[2].replace(/\s+/g, '');
+    if (digits.length > 4) return null;
     const num = parseInt(digits, 10);
     if (!isNaN(num) && num >= 1 && num <= 999) {
       return `${match[1].toUpperCase()}${String(num).padStart(3, '0')}`;

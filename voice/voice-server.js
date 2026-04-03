@@ -20,10 +20,10 @@ function getTwilioVoice(language) {
 }
 
 function isFinalMessage(text) {
-  return /\b(goodbye|bye|auf wiedersehen|tschüss|session has ended)\b/i.test(text);
+  return /\b(auf wiedersehen|tschüss|tschüs|goodbye|bye|session has ended|sitzung beendet)\b/i.test(text);
 }
 
-async function sendVoiceResponse(text, callSid, language = 'EN') {
+async function sendVoiceResponse(text, callSid, language = 'DE') {
   try {
     console.log(`🔊 Response [${language}]: "${text}"`);
     const domain = process.env.DOMAIN;
@@ -33,7 +33,7 @@ async function sendVoiceResponse(text, callSid, language = 'EN') {
       ? `<Response><Say voice="${voice}">${text}</Say><Hangup/></Response>`
       : `<Response><Say voice="${voice}">${text}</Say><Connect><Stream url="wss://${domain}/audio-stream"><Parameter name="language" value="${language}"/></Stream></Connect></Response>`;
     await twilioClient.calls(callSid).update({ twiml });
-    console.log(final ? '📴 Goodbye — hanging up' : '✅ TwiML sent');
+    console.log(final ? '📴 Auf Wiedersehen — hanging up' : '✅ TwiML sent');
   } catch (err) {
     console.error('❌ Failed to send TwiML:', err.message);
   }
@@ -41,16 +41,16 @@ async function sendVoiceResponse(text, callSid, language = 'EN') {
 
 function initVoiceServer(app, server) {
 
- // ── ROUTE 1: Incoming call — direct to audio stream ──
+  // ── ROUTE 1: Incoming call — German direct to audio stream ──
   app.post('/incoming-call', urlParser, (req, res) => {
     const domain = process.env.DOMAIN;
     console.log('📞 Incoming call received');
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna-Neural">Welcome to the ordering system. Please say your customer ID.</Say>
+  <Say voice="Polly.Vicki-Neural">Willkommen beim Bestellsystem. Bitte nennen Sie Ihre Kundennummer.</Say>
   <Connect>
     <Stream url="wss://${domain}/audio-stream">
-      <Parameter name="language" value="EN"/>
+      <Parameter name="language" value="DE"/>
     </Stream>
   </Connect>
 </Response>`;
@@ -72,7 +72,7 @@ function initVoiceServer(app, server) {
 
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-  // ── ROUTE 4: Text injection for testing ──
+  // ── ROUTE 3: Text injection for testing ──
   app.post('/api/inject-text', async (req, res) => {
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'No text provided' });
@@ -90,17 +90,15 @@ function initVoiceServer(app, server) {
         updateCall(callSid, { customer: state.customer.customer_name });
       }
 
-      console.log(`🔍 State after update: ${state.state} | lastOrder: ${JSON.stringify(state.lastOrder)}`);
       if (state.state === 'DONE' && state.lastOrder && callSid) {
         updateCall(callSid, {
           orderPlaced: true,
           orderId: state.lastOrder.order_id,
           orderTotal: state.lastOrder.total_price || 0,
         });
-        console.log(`✅ Order tracked: ${state.lastOrder.order_id}`);
       }
 
-      const lang = state.language || 'EN';
+      const lang = state.language || 'DE';
       if (response) await sendVoiceResponse(response, callSid, lang);
       res.json({ ok: true, response });
     } catch (e) {
@@ -119,8 +117,11 @@ function initVoiceServer(app, server) {
     let callSid = null;
     let processing = false;
     let state = null;
-    let language = 'EN';
+    let language = 'DE'; // ← German default
     let deepgramSeconds = 0;
+
+    // ENGLISH DEFAULT — detached, uncomment to reattach
+    // let language = 'EN';
 
     function startNewDeepgramStream() {
       try {
@@ -131,9 +132,8 @@ function initVoiceServer(app, server) {
 
           console.log(`🎤 Transcript: "${transcript}"`);
 
-          if (/\b(goodbye|bye|ok goodbye|auf wiedersehen|tschüss)\b/i.test(transcript)) {
-            const farewell = language === 'DE' ? 'Auf Wiedersehen!' : 'Thank you. Goodbye!';
-            await sendVoiceResponse(farewell, callSid, language);
+          if (/\b(auf wiedersehen|tschüss|tschüs|goodbye|bye)\b/i.test(transcript)) {
+            await sendVoiceResponse('Auf Wiedersehen!', callSid, language);
             processing = false;
             return;
           }
@@ -145,23 +145,25 @@ function initVoiceServer(app, server) {
               updateCall(callSid, { customer: state.customer.customer_name });
             }
 
-            if (state.state === 'DONE' && state.lastOrder && callSid) {
+             if (state.state === 'DONE' && state.lastOrder && callSid) {
               updateCall(callSid, {
                 orderPlaced: true,
                 orderId: state.lastOrder.order_id,
                 orderTotal: state.lastOrder.total_price || 0,
+                customerId: state.customer?.customer_id || null,
+                orderItems: state.lastOrder.items || [],
               });
-            }
+             }
 
             if (response && callSid) {
               await sendVoiceResponse(response, callSid, language);
             }
           } catch (err) {
             console.error('❌ Error in updateState:', err.message);
-            const errMsg = language === 'DE'
-              ? 'Es gab einen Fehler. Bitte versuchen Sie es erneut.'
-              : 'There was an error. Please try again.';
-            if (callSid) await sendVoiceResponse(errMsg, callSid, language);
+            await sendVoiceResponse(
+              'Es gab einen Fehler. Bitte versuchen Sie es erneut.',
+              callSid, language
+            );
           }
 
           processing = false;
@@ -182,7 +184,7 @@ function initVoiceServer(app, server) {
         if (data.event === 'start') {
           callSid = data.start?.callSid;
           const params = data.start?.customParameters || {};
-          language = params.language || 'EN';
+          language = params.language || 'DE'; // ← German default
           console.log(`📡 Stream started — CallSid: ${callSid} | Language: ${language}`);
 
           if (!callStates.has(callSid)) {
@@ -195,7 +197,7 @@ function initVoiceServer(app, server) {
           } else {
             const existingState = callStates.get(callSid);
             language = existingState.language || language;
-            console.log(`📡 Reconnected — CallSid: ${callSid} | State: ${existingState.state} | Lang: ${language}`);
+            console.log(`📡 Reconnected — CallSid: ${callSid} | Lang: ${language}`);
           }
 
           state = callStates.get(callSid);

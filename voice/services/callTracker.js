@@ -1,10 +1,48 @@
+const nodemailer = require('nodemailer');
+
 const DEEPGRAM_COST_PER_MIN = 0.0059;
 const TWILIO_COST_PER_MIN = 0.0085;
-
 const callRecords = [];
 
+// ── Email transporter ──
+const transporter = nodemailer.createTransport({
+  service: 'gmail',  // or use host/port for other providers
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+async function sendCallSummaryEmail(record) {
+  try {
+    const subject = `Bestellzusammenfassung — Kunde ${record.customer || 'Unbekannt'} — ${record.orderId || 'Keine Bestellung'}`;
+
+    const summary = {
+      customer_id: record.customerId || null,
+      customer_name: record.customer || null,
+      order_id: record.orderId || null,
+      order_placed: record.orderPlaced,
+      order_total: record.orderTotal,
+      items: record.orderItems || [],
+      call_duration_seconds: record.durationSeconds,
+      call_date: record.startTime,
+    };
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: 'umairyqb26@gmail.com',
+      subject,
+      text: JSON.stringify(summary, null, 2),
+      html: `<pre>${JSON.stringify(summary, null, 2)}</pre>`,
+    });
+
+    console.log(`📧 Summary email sent for call ${record.callSid}`);
+  } catch (err) {
+    console.error('❌ Failed to send email:', err.message);
+  }
+}
+
 function startCall(callSid) {
-  // Don't duplicate
   if (callRecords.find(r => r.callSid === callSid)) return;
   callRecords.push({
     callSid,
@@ -13,10 +51,12 @@ function startCall(callSid) {
     durationSeconds: 0,
     deepgramSeconds: 0,
     customer: null,
-    language: 'EN',
+    customerId: null,
+    language: 'DE',
     orderPlaced: false,
     orderId: null,
     orderTotal: 0,
+    orderItems: [],
     deepgramCost: 0,
     twilioCost: 0,
     totalCost: 0,
@@ -32,7 +72,6 @@ function updateCall(callSid, updates) {
   const record = getCall(callSid);
   if (record) {
     Object.assign(record, updates);
-    // Recalculate cost whenever deepgramSeconds or durationSeconds updates
     if (updates.deepgramSeconds || updates.durationSeconds) {
       _recalcCost(record);
     }
@@ -56,11 +95,14 @@ function endCall(callSid, durationSeconds) {
   _recalcCost(record);
   record.status = 'completed';
   console.log(`💰 Call ${callSid} — Duration: ${record.durationSeconds}s | Cost: $${record.totalCost}`);
+
+  // ── Send email summary ──
+  sendCallSummaryEmail(record);
+
   return record;
 }
 
 function getAllCalls() {
-  // Recalculate cost for active calls in real time before returning
   const now = Date.now();
   for (const r of callRecords) {
     if (r.status === 'active') {
@@ -73,7 +115,6 @@ function getAllCalls() {
 }
 
 function getSummary() {
-  
   return {
     totalCalls: callRecords.length,
     completedCalls: callRecords.filter(r => r.status === 'completed').length,
