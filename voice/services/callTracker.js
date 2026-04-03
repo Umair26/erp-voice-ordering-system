@@ -7,14 +7,15 @@ const callRecords = [];
 // ── Email transporter ──
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  family: 4, // ← forces IPv4, fixes ENETUNREACH
+  port: 465,
+  secure: true,
+  family: 4,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
 });
+
 transporter.verify((error, success) => {
   if (error) {
     console.error('❌ Email transporter error:', error.message);
