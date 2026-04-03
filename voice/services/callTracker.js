@@ -19,7 +19,10 @@ oauth2Client.setCredentials({
 async function createTransporter() {
   const accessToken = await oauth2Client.getAccessToken();
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    family: 4, // ← forces IPv4
     auth: {
       type: 'OAuth2',
       user: process.env.GMAIL_USER,
