@@ -1,32 +1,38 @@
 const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
 
 const DEEPGRAM_COST_PER_MIN = 0.0059;
 const TWILIO_COST_PER_MIN = 0.0085;
 const callRecords = [];
 
-// ── Email transporter ──
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  family: 4,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
+// ── OAuth2 Setup ──
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GMAIL_CLIENT_ID,
+  process.env.GMAIL_CLIENT_SECRET,
+  'https://developers.google.com/oauthplayground'
+);
+
+oauth2Client.setCredentials({
+  refresh_token: process.env.GMAIL_REFRESH_TOKEN,
 });
 
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ Email transporter error:', error.message);
-  } else {
-    console.log('✅ Email transporter ready');
-  }
-});
+async function createTransporter() {
+  const accessToken = await oauth2Client.getAccessToken();
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      type: 'OAuth2',
+      user: process.env.GMAIL_USER,
+      clientId: process.env.GMAIL_CLIENT_ID,
+      clientSecret: process.env.GMAIL_CLIENT_SECRET,
+      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+      accessToken: accessToken.token,
+    },
+  });
+}
+
 async function sendCallSummaryEmail(record) {
   try {
-    const subject = `Bestellzusammenfassung — Kunde ${record.customer || 'Unbekannt'} — ${record.orderId || 'Keine Bestellung'}`;
-
     const summary = {
       customer_id: record.customerId || null,
       customer_name: record.customer || null,
@@ -38,10 +44,12 @@ async function sendCallSummaryEmail(record) {
       call_date: record.startTime,
     };
 
+    const transporter = await createTransporter();
+
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: 'umairchauhan26@gmail.com',
-      subject,
+      from: process.env.GMAIL_USER,
+      to: 'umairyqb26@gmail.com',
+      subject: `Bestellzusammenfassung — Kunde ${record.customer || 'Unbekannt'} — ${record.orderId || 'Keine Bestellung'}`,
       text: JSON.stringify(summary, null, 2),
       html: `<pre>${JSON.stringify(summary, null, 2)}</pre>`,
     });
@@ -105,10 +113,7 @@ function endCall(callSid, durationSeconds) {
   _recalcCost(record);
   record.status = 'completed';
   console.log(`💰 Call ${callSid} — Duration: ${record.durationSeconds}s | Cost: $${record.totalCost}`);
-
-  // ── Send email summary ──
   sendCallSummaryEmail(record);
-
   return record;
 }
 
