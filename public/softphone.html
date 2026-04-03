@@ -550,6 +550,38 @@
       <input type="text" id="toNumber" placeholder="+12025551234" />
     </div>
 
+    <div class="number-display" id="dialDisplay">—</div>
+
+    <div class="dialpad">
+      <div class="dial-btn" onclick="dialPress('1')"><span class="num">1</span><span class="sub"> </span></div>
+      <div class="dial-btn" onclick="dialPress('2')"><span class="num">2</span><span class="sub">ABC</span></div>
+      <div class="dial-btn" onclick="dialPress('3')"><span class="num">3</span><span class="sub">DEF</span></div>
+      <div class="dial-btn" onclick="dialPress('4')"><span class="num">4</span><span class="sub">GHI</span></div>
+      <div class="dial-btn" onclick="dialPress('5')"><span class="num">5</span><span class="sub">JKL</span></div>
+      <div class="dial-btn" onclick="dialPress('6')"><span class="num">6</span><span class="sub">MNO</span></div>
+      <div class="dial-btn" onclick="dialPress('7')"><span class="num">7</span><span class="sub">PQRS</span></div>
+      <div class="dial-btn" onclick="dialPress('8')"><span class="num">8</span><span class="sub">TUV</span></div>
+      <div class="dial-btn" onclick="dialPress('9')"><span class="num">9</span><span class="sub">WXYZ</span></div>
+      <div class="dial-btn" onclick="dialPress('*')"><span class="num">*</span><span class="sub"> </span></div>
+      <div class="dial-btn" onclick="dialPress('0')"><span class="num">0</span><span class="sub">+</span></div>
+      <div class="dial-btn" onclick="dialPress('#')"><span class="num">#</span><span class="sub"> </span></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-call" id="callBtn" onclick="makeCall()" disabled>
+        <span class="btn-icon">📞</span> Call
+      </button>
+      <button class="btn btn-hangup" id="hangupBtn" onclick="hangUp()" disabled>
+        <span class="btn-icon">📵</span> End
+      </button>
+    </div>
+
+    <button class="btn-mute" id="muteBtn" onclick="toggleMute()" disabled>
+      🎤 MUTE MICROPHONE
+    </button>
+
+    <div class="divider"></div>
+
     <!-- ── Text Input (Manual) ── -->
 <div class="text-input-section">
   <label>⌨ Manuelle Texteingabe (Sprache umgehen)</label>
