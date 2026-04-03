@@ -335,10 +335,10 @@ async function updateState(state, transcript) {
         state.customer = customer;
         state.state = STATES.ORDER;
         // Use customer's language from ERP if available
-        if (customer.language) state.language = customer.language;
+       
         const isDE = state.language === 'DE';
         return isDE
-          ? `Guten Tag ${customer.customer_name}. Was möchten Sie bestellen?`
+          ? `Hallo ${customer.customer_name}. Was möchten Sie bestellen?`
           : `Hello ${customer.customer_name}, welcome. What would you like to order today?`;
       }
     } catch (e) {

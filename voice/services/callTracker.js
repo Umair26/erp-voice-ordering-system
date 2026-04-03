@@ -6,13 +6,22 @@ const callRecords = [];
 
 // ── Email transporter ──
 const transporter = nodemailer.createTransport({
-  service: 'gmail',  // or use host/port for other providers
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  family: 4, // ← forces IPv4, fixes ENETUNREACH
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
 });
-
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('❌ Email transporter error:', error.message);
+  } else {
+    console.log('✅ Email transporter ready');
+  }
+});
 async function sendCallSummaryEmail(record) {
   try {
     const subject = `Bestellzusammenfassung — Kunde ${record.customer || 'Unbekannt'} — ${record.orderId || 'Keine Bestellung'}`;
@@ -30,7 +39,7 @@ async function sendCallSummaryEmail(record) {
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: 'umairyqb26@gmail.com',
+      to: 'umairchauhan26@gmail.com',
       subject,
       text: JSON.stringify(summary, null, 2),
       html: `<pre>${JSON.stringify(summary, null, 2)}</pre>`,
@@ -127,4 +136,4 @@ function getSummary() {
   };
 }
 
-module.exports = { startCall, getCall, updateCall, endCall, getAllCalls, getSummary };
+module.exports = { startCall, getCall, updateCall, endCall, getAllCalls, getSummary, sendCallSummaryEmail };

@@ -71,7 +71,26 @@ function initVoiceServer(app, server) {
   });
 
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
-
+app.get('/test-email', async (req, res) => {
+  try {
+    const { sendCallSummaryEmail } = require('./services/callTracker');
+    
+    await sendCallSummaryEmail({
+      callSid: 'TEST-123',
+      customer: 'Test Customer',
+      customerId: 'C001',
+      orderId: 'ORD-TEST',
+      orderPlaced: true,
+      orderTotal: 99.99,
+      orderItems: [{ article_number: 'A001', quantity: 2 }],
+      durationSeconds: 120,
+      startTime: new Date(),
+    });
+    res.json({ ok: true, message: 'Email sent — check inbox' });
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
   // ── ROUTE 3: Text injection for testing ──
   app.post('/api/inject-text', async (req, res) => {
     const { text } = req.body;
