@@ -1,27 +1,11 @@
-const nodemailer = require('nodemailer');
+const { Brevo, BrevoClient } = require('@getbrevo/brevo');
+const brevoClient = new BrevoClient({
+  apiKey: process.env.BREVO_API_KEY,
+});
 
 const DEEPGRAM_COST_PER_MIN = 0.0059;
 const TWILIO_COST_PER_MIN = 0.0085;
 const callRecords = [];
-
-const transporter = nodemailer.createTransport({
-  host: 'smtp-relay.brevo.com',
-  port: 465,
-  secure: true,
-  family: 4,
-  auth: {
-    user: process.env.BREVO_USER,
-    pass: process.env.BREVO_PASS,
-  },
-});
-
-transporter.verify((error) => {
-  if (error) {
-    console.error('❌ Email transporter error:', error.message);
-  } else {
-    console.log('✅ Email transporter ready');
-  }
-});
 
 async function sendCallSummaryEmail(record) {
   try {
@@ -36,12 +20,12 @@ async function sendCallSummaryEmail(record) {
       call_date: record.startTime,
     };
 
-    await transporter.sendMail({
-      from: 'vincent.rach.eu@gmail.com',
-      to: 'umairyqb26@gmail.com',
+    await brevoClient.transactionalEmails.sendTransacEmail({
+      to: [{ email: 'umairyqb26@gmail.com' }],
+      sender: { email: 'vincent.rach.eu@gmail.com', name: 'ERP Bot' },
       subject: `Bestellzusammenfassung — Kunde ${record.customer || 'Unbekannt'} — ${record.orderId || 'Keine Bestellung'}`,
-      text: JSON.stringify(summary, null, 2),
-      html: `<pre>${JSON.stringify(summary, null, 2)}</pre>`,
+      htmlContent: `<pre>${JSON.stringify(summary, null, 2)}</pre>`,
+      textContent: JSON.stringify(summary, null, 2),
     });
 
     console.log(`📧 Summary email sent for call ${record.callSid}`);
