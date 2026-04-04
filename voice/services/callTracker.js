@@ -1,38 +1,26 @@
 const nodemailer = require('nodemailer');
-const { google } = require('googleapis');
 
 const DEEPGRAM_COST_PER_MIN = 0.0059;
 const TWILIO_COST_PER_MIN = 0.0085;
 const callRecords = [];
 
-// ── OAuth2 Setup ──
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GMAIL_CLIENT_ID,
-  process.env.GMAIL_CLIENT_SECRET,
-  'https://developers.google.com/oauthplayground'
-);
-
-oauth2Client.setCredentials({
-  refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+const transporter = nodemailer.createTransport({
+  host: 'smtp-relay.brevo.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.BREVO_USER,
+    pass: process.env.BREVO_PASS,
+  },
 });
 
-async function createTransporter() {
-  const accessToken = await oauth2Client.getAccessToken();
-  return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    family: 4, // ← forces IPv4
-    auth: {
-      type: 'OAuth2',
-      user: process.env.GMAIL_USER,
-      clientId: process.env.GMAIL_CLIENT_ID,
-      clientSecret: process.env.GMAIL_CLIENT_SECRET,
-      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-      accessToken: accessToken.token,
-    },
-  });
-}
+transporter.verify((error) => {
+  if (error) {
+    console.error('❌ Email transporter error:', error.message);
+  } else {
+    console.log('✅ Email transporter ready');
+  }
+});
 
 async function sendCallSummaryEmail(record) {
   try {
@@ -47,10 +35,8 @@ async function sendCallSummaryEmail(record) {
       call_date: record.startTime,
     };
 
-    const transporter = await createTransporter();
-
     await transporter.sendMail({
-      from: process.env.GMAIL_USER,
+      from: 'vincent.rach.eu@gmail.com',
       to: 'umairyqb26@gmail.com',
       subject: `Bestellzusammenfassung — Kunde ${record.customer || 'Unbekannt'} — ${record.orderId || 'Keine Bestellung'}`,
       text: JSON.stringify(summary, null, 2),
