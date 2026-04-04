@@ -140,58 +140,49 @@ function wordsToDigits(text) {
 }
 
 function wordsToNumber(text) {
-  const lower = text.toLowerCase().trim();
+  const lower = text.toLowerCase().trim().replace(/\.$/, '').trim();
 
-  // ── Thousands: German ──
-  // "zweitausend dreihundert vierundzwanzig" → 2324
-  const deThouMatch = lower.match(
-    /\b(ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn)?\s*tausend\s*(.*)?/i
-  );
-  if (deThouMatch) {
-    const deOnes = { 'ein':1,'zwei':2,'drei':3,'vier':4,'fünf':5,'sechs':6,'sieben':7,'acht':8,'neun':9,'zehn':10 };
-    const thousands = deOnes[deThouMatch[1]] || 1;
-    const remainder = deThouMatch[2] ? wordsToNumber(deThouMatch[2].trim()) : 0;
-    return thousands * 1000 + (remainder || 0);
+  // ── Single compound word parser (no spaces) ──
+  // Handles: eintausendsiebenhundertfünfundzwanzig → 1725
+  let remaining = lower;
+  let total = 0;
+
+  const thousandPrefixes = {
+    'zehntausend': 10000,
+    'neuntausend': 9000, 'achttausend': 8000, 'siebentausend': 7000,
+    'sechstausend': 6000, 'fünftausend': 5000, 'viertausend': 4000,
+    'dreitausend': 3000, 'zweitausend': 2000, 'eintausend': 1000,
+    'tausend': 1000,
+  };
+  for (const [word, val] of Object.entries(thousandPrefixes)) {
+    if (remaining.startsWith(word)) {
+      total += val;
+      remaining = remaining.slice(word.length);
+      break;
+    }
   }
 
-  // ── Thousands: English ──
-  const enThouMatch = lower.match(
-    /\b(one|two|three|four|five|six|seven|eight|nine|ten)?\s*thousand\s*(.*)?/i
-  );
-  if (enThouMatch) {
-    const enOnes = { 'one':1,'two':2,'three':3,'four':4,'five':5,'six':6,'seven':7,'eight':8,'nine':9,'ten':10 };
-    const thousands = enOnes[enThouMatch[1]] || 1;
-    const remainder = enThouMatch[2] ? wordsToNumber(enThouMatch[2].trim()) : 0;
-    return thousands * 1000 + (remainder || 0);
+  const hundredPrefixes = {
+    'neunhundert': 900, 'achthundert': 800, 'siebenhundert': 700,
+    'sechshundert': 600, 'fünfhundert': 500, 'vierhundert': 400,
+    'dreihundert': 300, 'zweihundert': 200, 'einhundert': 100,
+    'hundert': 100,
+  };
+  for (const [word, val] of Object.entries(hundredPrefixes)) {
+    if (remaining.startsWith(word)) {
+      total += val;
+      remaining = remaining.slice(word.length);
+      break;
+    }
   }
 
-  // ── Hundreds: German ──
-  const deHundredMatch = lower.match(
-    /\b(ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun)?\s*hundert\s*(\w+(?:\s+\w+)*)?\b/i
-  );
-  if (deHundredMatch) {
-    const deOnes = { 'ein':1,'zwei':2,'drei':3,'vier':4,'fünf':5,'sechs':6,'sieben':7,'acht':8,'neun':9 };
-    const hundreds = deOnes[deHundredMatch[1]] || 1;
-    const remainder = deHundredMatch[2] ? wordsToNumber(deHundredMatch[2]) : 0;
-    return hundreds * 100 + (remainder || 0);
-  }
+  // remove joining 'und' or 'und-'
+  remaining = remaining.replace(/^und/, '').trim();
 
-  // ── Hundreds: English ──
-  const enHundredMatch = lower.match(
-    /\b(one|two|three|four|five|six|seven|eight|nine)?\s*hundred(?:\s+and)?\s*(\w+(?:\s+\w+)*)?\b/i
-  );
-  if (enHundredMatch) {
-    const enOnes = { 'one':1,'two':2,'three':3,'four':4,'five':5,'six':6,'seven':7,'eight':8,'nine':9 };
-    const hundreds = enOnes[enHundredMatch[1]] || 1;
-    const remainder = enHundredMatch[2] ? wordsToNumber(enHundredMatch[2]) : 0;
-    return hundreds * 100 + (remainder || 0);
-  }
-
-  // ── German compounds (21–99) ──
-  const deCompounds = {
+  const compounds = {
     'einundzwanzig':21,'zweiundzwanzig':22,'dreiundzwanzig':23,'vierundzwanzig':24,
     'fünfundzwanzig':25,'sechsundzwanzig':26,'siebenundzwanzig':27,'achtundzwanzig':28,'neunundzwanzig':29,
-    'einunddreißig':31,'zweiunddreißig':32,'dreiundreißig':33,'vierunddreißig':34,
+    'einunddreißig':31,'zweiunddreißig':32,'dreiundreißig':33,'dreiundreißig':33,'vierunddreißig':34,
     'fünfunddreißig':35,'sechsunddreißig':36,'siebenunddreißig':37,'achtunddreißig':38,'neununddreißig':39,
     'einundvierzig':41,'zweiundvierzig':42,'dreiundvierzig':43,'vierundvierzig':44,
     'fünfundvierzig':45,'sechsundvierzig':46,'siebenundvierzig':47,'achtundvierzig':48,'neunundvierzig':49,
@@ -206,28 +197,71 @@ function wordsToNumber(text) {
     'einundneunzig':91,'zweiundneunzig':92,'dreiundneunzig':93,'vierundneunzig':94,
     'fünfundneunzig':95,'sechsundneunzig':96,'siebenundneunzig':97,'achtundneunzig':98,'neunundneunzig':99,
   };
-  for (const [word, val] of Object.entries(deCompounds)) {
-    if (lower.includes(word)) return val;
+
+  const tens = {
+    'neunzig':90,'achtzig':80,'siebzig':70,'sechzig':60,
+    'fünfzig':50,'vierzig':40,'dreißig':30,'zwanzig':20,
+    'neunzehn':19,'achtzehn':18,'siebzehn':17,'sechzehn':16,
+    'fünfzehn':15,'vierzehn':14,'dreizehn':13,'zwölf':12,'elf':11,'zehn':10,
+  };
+
+  const singles = {
+    'neun':9,'acht':8,'sieben':7,'sechs':6,'fünf':5,
+    'vier':4,'drei':3,'zwei':2,'eins':1,'ein':1,'null':0,
+  };
+
+  if (remaining) {
+    let matched = false;
+    for (const [word, val] of Object.entries(compounds)) {
+      if (remaining.startsWith(word)) { total += val; matched = true; break; }
+    }
+    if (!matched) {
+      for (const [word, val] of Object.entries(tens)) {
+        if (remaining.startsWith(word)) { total += val; matched = true; break; }
+      }
+    }
+    if (!matched) {
+      for (const [word, val] of Object.entries(singles)) {
+        if (remaining.startsWith(word)) { total += val; matched = true; break; }
+      }
+    }
   }
 
-  // ── Singles and tens ──
-  const singles = {
-    'zehn':10,'elf':11,'zwölf':12,'dreizehn':13,'vierzehn':14,
-    'fünfzehn':15,'sechzehn':16,'siebzehn':17,'achtzehn':18,'neunzehn':19,
-    'zwanzig':20,'dreißig':30,'vierzig':40,'fünfzig':50,
-    'sechzig':60,'siebzig':70,'achtzig':80,'neunzig':90,'hundert':100,'tausend':1000,
-    'eins':1,'ein':1,'zwei':2,'drei':3,'vier':4,'fünf':5,
-    'sechs':6,'sieben':7,'acht':8,'neun':9,'null':0,
-    'ten':10,'eleven':11,'twelve':12,'thirteen':13,'fourteen':14,
-    'fifteen':15,'sixteen':16,'seventeen':17,'eighteen':18,'nineteen':19,
-    'twenty':20,'thirty':30,'forty':40,'fifty':50,
-    'sixty':60,'seventy':70,'eighty':80,'ninety':90,'hundred':100,'thousand':1000,
-    'one':1,'two':2,'three':3,'four':4,'five':5,
-    'six':6,'seven':7,'eight':8,'nine':9,'zero':0,
-  };
+  if (total > 0) return total;
+
+  // ── Fallback: spaced words with tausend/hundert ──
+  const spacedThou = lower.match(/\b(ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn)?\s*tausend\b/i);
+  if (spacedThou) {
+    const deOnes = {'ein':1,'zwei':2,'drei':3,'vier':4,'fünf':5,'sechs':6,'sieben':7,'acht':8,'neun':9,'zehn':10};
+    const thousands = deOnes[spacedThou[1]] || 1;
+    const afterThou = lower.slice(lower.indexOf('tausend') + 7).trim();
+    const remainder = afterThou ? wordsToNumber(afterThou) : 0;
+    return thousands * 1000 + (remainder || 0);
+  }
+
+  const spacedHund = lower.match(/\b(ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun)?\s*hundert\b/i);
+  if (spacedHund) {
+    const deOnes = {'ein':1,'zwei':2,'drei':3,'vier':4,'fünf':5,'sechs':6,'sieben':7,'acht':8,'neun':9};
+    const hundreds = deOnes[spacedHund[1]] || 1;
+    const afterHund = lower.slice(lower.indexOf('hundert') + 7).trim();
+    const remainder = afterHund ? wordsToNumber(afterHund) : 0;
+    return hundreds * 100 + (remainder || 0);
+  }
+
+  // ── Fallback: single words ──
+  for (const [word, val] of Object.entries(compounds)) {
+    if (lower.includes(word)) return val;
+  }
+  for (const [word, val] of Object.entries(tens)) {
+    if (lower.includes(word)) return val;
+  }
   for (const [word, val] of Object.entries(singles)) {
     if (lower.includes(word)) return val;
   }
+
+  // ── Digit fallback ──
+  const numMatch = lower.match(/\d+/);
+  if (numMatch) return parseInt(numMatch[0], 10);
 
   return null;
 }
@@ -260,15 +294,14 @@ function extractCustomerId(transcript) {
 }
 
 function extractQuantity(transcript) {
-  const lower = transcript.toLowerCase().trim();
+  // Strip trailing period Deepgram sometimes adds
+  const lower = transcript.toLowerCase().trim().replace(/\.$/, '').trim();
 
-  // Try full word parsing first (handles thousands)
   const wordQty = wordsToNumber(lower);
   if (wordQty && wordQty > 0) return wordQty;
 
-  // Convert words to digits then extract
   const converted = wordsToDigits(transcript);
-  const match = converted.match(/\b(\d{1,5})\b/); // up to 99999
+  const match = converted.match(/\b(\d{1,6})\b/);
   if (match) {
     const num = parseInt(match[1], 10);
     if (num > 0) return num;

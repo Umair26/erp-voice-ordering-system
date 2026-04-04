@@ -21,7 +21,7 @@ async function sendCallSummaryEmail(record) {
     };
 
     await brevoClient.transactionalEmails.sendTransacEmail({
-      to: [{ email: 'umairyqb26@gmail.com' }],
+      to: [{ email: 'thomas.rach@ntsapollo.com' }],
       sender: { email: 'vincent.rach.eu@gmail.com', name: 'ERP Bot' },
       subject: `Bestellzusammenfassung — Kunde ${record.customer || 'Unbekannt'} — ${record.orderId || 'Keine Bestellung'}`,
       htmlContent: `<pre>${JSON.stringify(summary, null, 2)}</pre>`,
