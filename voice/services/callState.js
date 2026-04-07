@@ -7,6 +7,7 @@ const STATES = {
   ADD_MORE: 'ADD_MORE',
   CONFIRM: 'CONFIRM',
   DONE: 'DONE',
+  OUT_OF_STOCK: 'OUT_OF_STOCK',
 };
 
 function newCallState() {
@@ -367,8 +368,6 @@ async function updateState(state, transcript) {
       if (customer && customer.found) {
         state.customer = customer;
         state.state = STATES.ORDER;
-        // Use customer's language from ERP if available
-       
         const isDE = state.language === 'DE';
         return isDE
           ? `Hallo ${customer.customer_name}. Was möchten Sie bestellen?`
@@ -385,7 +384,6 @@ async function updateState(state, transcript) {
 
   // ── ORDER ──
   if (state.state === STATES.ORDER) {
-    // Nothing/done intent — EN + DE
     const nothingIntent = /\b(nothing|no more|that'?s all|done|finished|nichts|das war alles|fertig|nein danke)\b/i.test(text);
     if (nothingIntent) {
       if (state.cart.length > 0) {
@@ -402,7 +400,6 @@ async function updateState(state, transcript) {
       }
     }
 
-    // Try article number
     const articleMatch = transcript.toUpperCase().match(/A\s*(\d{3})/);
     let item = null;
     if (articleMatch) {
@@ -422,6 +419,7 @@ async function updateState(state, transcript) {
     if (item && item.found) {
       if (item.availability_status === 'Out of stock') {
         const title = de ? (item.item_title_DE || item.item_title) : item.item_title;
+        state.state = STATES.OUT_OF_STOCK;
         return de
           ? `${title} ist leider nicht auf Lager. Möchten Sie etwas anderes?`
           : `${title} is out of stock. Would you like something else?`;
@@ -516,16 +514,16 @@ async function updateState(state, transcript) {
           state.lastOrder = order;
           const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
           const spokenId = de ? speakOrderNumberDE(order.order_id) : speakOrderNumber(order.order_id);
-           return de
-    ? 'Auf Wiedersehen!'
-    : 'Thank you for calling. Goodbye!';
-    }
+          return de
+            ? 'Auf Wiedersehen!'
+            : 'Thank you for calling. Goodbye!';
+        }
       } catch (e) {
         console.error('Order error:', e.message);
       }
       return de
-  ? 'Es tut uns leid, es gab einen Fehler. Auf Wiedersehen!'
-  : 'Sorry, there was an error placing your order. Thank you, goodbye!';
+        ? 'Es tut uns leid, es gab einen Fehler. Auf Wiedersehen!'
+        : 'Sorry, there was an error placing your order. Thank you, goodbye!';
     }
 
     if (no) {
@@ -536,9 +534,44 @@ async function updateState(state, transcript) {
         : 'No problem. What would you like to order?';
     }
 
-    return de ? 'Bitte sagen Sie Ja oder Nein.' : 'Please say yes or no.';
+    return de ? 'Bitte sagen Sie Ja oder Nein.' : 'Please say yes oder no.';
   }
 
+  // ── OUT OF STOCK ──
+  if (state.state === STATES.OUT_OF_STOCK) {
+    const yes = /\b(yes|ja|sure|ok|okay|bitte|gerne|natürlich|klar)\b/i.test(text);
+    const no  = /\b(no|nein|danke|nein danke|fertig|das war alles)\b/i.test(text);
+
+    if (yes) {
+      state.state = STATES.ORDER;
+      return de
+        ? 'Was möchten Sie bestellen? Bitte nennen Sie die Artikelnummer oder den Produktnamen.'
+        : 'What would you like to order? Please provide the article number or product name.';
+    }
+
+    if (no) {
+      if (state.cart.length > 0) {
+        state.state = STATES.CONFIRM;
+        const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
+        const summary = state.cart.map(i => {
+          const title = de ? (i.item_title_DE || i.item.item_title) : i.item.item_title;
+          return `${i.quantity} ${title}`;
+        }).join(', ');
+        return de
+          ? `Zusammenfassung: ${summary}. Gesamt: ${formatPrice(totalAmount, 'DE')}. Soll ich die Bestellung aufgeben?`
+          : `Your order has ${summary}. Total is ${formatPrice(totalAmount)}. Shall I place the order?`;
+      } else {
+        state.state = STATES.DONE;
+        return de ? 'Auf Wiedersehen!' : 'Thank you. Goodbye!';
+      }
+    }
+
+    return de
+      ? 'Möchten Sie etwas anderes bestellen? Bitte sagen Sie Ja oder Nein.'
+      : 'Would you like to order something else? Please say yes or no.';
+  }
+
+  // ── DONE ──
   if (state.state === STATES.DONE) {
     return de ? 'Ihre Sitzung ist beendet. Auf Wiedersehen.' : 'Your session has ended. Goodbye.';
   }
