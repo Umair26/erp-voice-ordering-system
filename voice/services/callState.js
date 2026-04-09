@@ -295,8 +295,10 @@ function extractCustomerId(transcript) {
 }
 
 function extractQuantity(transcript) {
-  // Strip trailing period Deepgram sometimes adds
   const lower = transcript.toLowerCase().trim().replace(/\.$/, '').trim();
+
+  // "Keine" = none/zero in German — treat as invalid quantity
+  if (/\bkeine?\b/i.test(lower)) return 0;
 
   const wordQty = wordsToNumber(lower);
   if (wordQty && wordQty > 0) return wordQty;
@@ -400,7 +402,11 @@ async function updateState(state, transcript) {
       }
     }
 
-    const articleMatch = transcript.toUpperCase().match(/A\s*(\d{3})/);
+    const normalizedTranscript = transcript.toUpperCase()
+    .replace(/\bH\s*(\d)/g, 'A $1')
+    .replace(/\bÄ\s*(\d)/g, 'A $1')
+    .replace(/\bAH\s*(\d)/g, 'A $1');
+    const articleMatch = normalizedTranscript.match(/A\s*(\d{3})/);
     let item = null;
     if (articleMatch) {
       try {
@@ -465,39 +471,86 @@ async function updateState(state, transcript) {
   }
 
   // ── ADD MORE ──
-  if (state.state === STATES.ADD_MORE) {
-    const yes = /\b(yes|ja|more|add|another|other|want|sure|also|noch|weitere|mehr)\b/i.test(text);
-    const no  = /\b(no|nein|done|finished|that'?s|nothing|complete|confirm|place|order|fertig|nein danke|das war alles)\b/i.test(text);
+  // ── ADD MORE ──
+if (state.state === STATES.ADD_MORE) {
+  const yes = /\b(yes|ja|more|add|another|other|want|sure|also|noch|weitere|mehr)\b/i.test(text);
+  const no  = /\b(no|nein|done|finished|that'?s|nothing|complete|confirm|place|order|fertig|nein danke|das war alles)\b/i.test(text);
 
-    if (no) {
-      state.state = STATES.CONFIRM;
-      const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
-      const summary = state.cart.map(i => {
-        const title = de ? (i.item_title_DE || i.item.item_title) : i.item.item_title;
-        return `${i.quantity} ${title}`;
-      }).join(', ');
-      return de
-        ? `Zusammenfassung: ${summary}. Gesamt: ${formatPrice(totalAmount, 'DE')}. Soll ich die Bestellung aufgeben?`
-        : `Your order has ${summary}. Total is ${formatPrice(totalAmount)}. Shall I place the order?`;
-    }
-
-    if (yes) {
-      const productHint = extractProductFromMixed(transcript);
-      const hasProduct = productHint.length > 3 &&
-        !/^(yes|ja|sure|ok|okay|please|add|more|another|noch|mehr)$/i.test(productHint.trim());
-
-      state.state = STATES.ORDER;
-
-      if (hasProduct) {
-        return await updateState(state, productHint);
-      }
-
-      return de ? 'Was möchten Sie noch bestellen?' : 'What else would you like to order?';
-    }
-
-    return de ? 'Bitte sagen Sie Ja oder Nein.' : 'Please say yes or no.';
+  if (no) {
+    state.state = STATES.CONFIRM;
+    const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
+    const summary = state.cart.map(i => {
+      const title = de ? (i.item_title_DE || i.item.item_title) : i.item.item_title;
+      return `${i.quantity} ${title}`;
+    }).join(', ');
+    return de
+      ? `Zusammenfassung: ${summary}. Gesamt: ${formatPrice(totalAmount, 'DE')}. Soll ich die Bestellung aufgeben?`
+      : `Your order has ${summary}. Total is ${formatPrice(totalAmount)}. Shall I place the order?`;
   }
 
+  if (yes) {
+    const productHint = extractProductFromMixed(transcript);
+    const hasProduct = productHint.length > 3 &&
+      !/^(yes|ja|sure|ok|okay|please|add|more|another|noch|mehr)$/i.test(productHint.trim());
+
+    state.state = STATES.ORDER;
+
+    if (hasProduct) {
+      return await updateState(state, productHint);
+    }
+
+    return de ? 'Was möchten Sie noch bestellen?' : 'What else would you like to order?';
+  }
+
+  // ── DIRECT PRODUCT IN ADD_MORE ──
+  // Customer skipped yes/no and said product name or article number directly
+  // e.g. "Klemmleiste 12-polig" or "A016" or "Zwölf Klemmleisten"
+  const { searchProduct } = require('./semanticSearch');
+
+  // Check article number first
+  const normalizedDirect = transcript.toUpperCase()
+    .replace(/\bH\s*(\d)/g, 'A $1')
+    .replace(/\bÄ\s*(\d)/g, 'A $1')
+    .replace(/\bAH\s*(\d)/g, 'A $1');
+  const directArticleMatch = normalizedDirect.match(/A\s*(\d{3})/);
+
+  if (directArticleMatch) {
+    // Looks like an article number — go straight to ORDER
+    state.state = STATES.ORDER;
+    return await updateState(state, transcript);
+  }
+
+  // Check if it looks like a product name (more than 3 chars, not just filler)
+  const productHint = extractProductFromMixed(transcript);
+  const looksLikeProduct = productHint.length > 3 &&
+    !/^(ja|nein|yes|no|ok|okay|bitte|danke|mehr|noch|fertig|nein danke|klar|natürlich|sicher)$/i.test(productHint.trim());
+
+  if (looksLikeProduct) {
+    // Try to look it up directly — if found go to QUANTITY, if not ask what they want
+    const directItem = await searchProduct(transcript, de ? 'DE' : 'EN');
+    if (directItem && directItem.found) {
+      if (directItem.availability_status === 'Out of stock') {
+        const title = de ? (directItem.item_title_DE || directItem.item_title) : directItem.item_title;
+        state.state = STATES.OUT_OF_STOCK;
+        return de
+          ? `${title} ist leider nicht auf Lager. Möchten Sie etwas anderes?`
+          : `${title} is out of stock. Would you like something else?`;
+      }
+      state.currentItem = directItem;
+      state.state = STATES.QUANTITY;
+      const title = de ? (directItem.item_title_DE || directItem.item_title) : directItem.item_title;
+      return de
+        ? `Ich habe ${title} gefunden. Wie viele möchten Sie?`
+        : `I found ${directItem.item_title}. How many would you like?`;
+    }
+
+    // Product not found — switch to ORDER and ask
+    state.state = STATES.ORDER;
+    return await updateState(state, transcript);
+  }
+
+  return de ? 'Bitte sagen Sie Ja oder Nein.' : 'Please say yes or no.';
+}
   // ── CONFIRM ──
   if (state.state === STATES.CONFIRM) {
     const yes = /\b(yes|ja|correct|confirm|proceed|go|ok|okay|place|sure|bestellen|ja bitte|jawohl)\b/i.test(text);

@@ -14,14 +14,12 @@ function startDeepgramStream(onTranscript, language = 'EN') {
     sample_rate: 8000,
     punctuate: true,
     interim_results: true,
-    endpointing: 300,           // reduced from 500 → faster endpointing
-    utterance_end_ms: 1000,     // fire UtteranceEnd after 1s silence
+    endpointing: 500,
+    utterance_end_ms: 1500,
   });
 
   let accumulatedText = '';
-  let silenceTimer = null;
   let utteranceFired = false;
-  const SILENCE_DELAY = 1000;   // reduced from 3000 → much faster response
 
   function fireTranscript() {
     if (accumulatedText && !utteranceFired) {
@@ -45,16 +43,11 @@ function startDeepgramStream(onTranscript, language = 'EN') {
       utteranceFired = false;
       accumulatedText = (accumulatedText + ' ' + text).trim();
       console.log(`📝 Accumulated: "${accumulatedText}"`);
-
-      if (silenceTimer) clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(fireTranscript, SILENCE_DELAY);
     }
   });
 
-  // UtteranceEnd fires when Deepgram is confident the speaker has stopped
   live.on(LiveTranscriptionEvents.UtteranceEnd, () => {
     console.log('🔚 UtteranceEnd received');
-    if (silenceTimer) clearTimeout(silenceTimer);
     fireTranscript();
   });
 
@@ -64,7 +57,7 @@ function startDeepgramStream(onTranscript, language = 'EN') {
 
   live.on(LiveTranscriptionEvents.Close, () => {
     console.log('🔌 Deepgram connection closed');
-    if (silenceTimer) clearTimeout(silenceTimer);
+    accumulatedText = '';
   });
 
   return live;

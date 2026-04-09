@@ -127,11 +127,14 @@ function wordsToDigits(text) {
 function extractArticleNumber(text) {
   let converted = wordsToDigits(text);
 
-  // Fix German Deepgram mishearing "C" as "ZEE", "ZE", "SEE", "SE", "TSEE"
+
   converted = converted
     .replace(/\b(zee|zeh|ze|see|se|tsee|zee)\s*/gi, 'C ')
     .replace(/s\s*8\s*(\d)\s*(\d)\s*(\d)\b/gi, (_, a, b, c) => `A${a}${b}${c}`)
-    .replace(/\b8\s*(\d)\s*(\d)\s*(\d)\b/gi,   (_, a, b, c) => `A${a}${b}${c}`);
+    .replace(/\b8\s*(\d)\s*(\d)\s*(\d)\b/gi,   (_, a, b, c) => `A${a}${b}${c}`)
+    .replace(/\bH\s*(\d)/g, 'A $1')
+    .replace(/\bÄ\s*(\d)/g, 'A $1')
+    .replace(/\bAH\s*(\d)/g, 'A $1');
 
   console.log(`🔄 Article search in: "${converted}"`);
 
@@ -169,11 +172,12 @@ async function searchProduct(query, language = 'EN') {
 
   // Keyword search fallback
   const cleaned = wordsToDigits(query)
-    .toLowerCase()
-    .replace(/(yeah|i want|i need|get me|order|item|number|article|please|it's|its|ich möchte|ich brauche|bitte|gerne)/gi, ' ')
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  .toLowerCase()
+  .replace(/(yeah|i want|i need|get me|order|item|number|article|please|it's|its|ich möchte|ich brauche|bitte|gerne)/gi, ' ')
+  .replace(/[^a-z0-9\s]/g, ' ')
+  .replace(/\b\d+\b/g, ' ')  // remove standalone numbers to avoid false matches
+  .replace(/\s+/g, ' ')
+  .trim();
 
   console.log(`🔤 Keyword search: "${cleaned}" | lang: ${language}`);
   if (cleaned.length > 2) {
