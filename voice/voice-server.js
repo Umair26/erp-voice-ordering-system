@@ -26,6 +26,7 @@ function isFinalMessage(text) {
 async function sendVoiceResponse(text, callSid, language = 'DE') {
   try {
     console.log(`🔊 Response [${language}]: "${text}"`);
+    if (global.logEvent) global.logEvent(null, 'BOT', `Bot said: "${text}"`);
     const domain = process.env.DOMAIN;
     const voice = getTwilioVoice(language);
     const final = isFinalMessage(text);
@@ -70,21 +71,75 @@ function initVoiceServer(app, server) {
     res.sendStatus(200);
   });
 
-  app.get('/health', (req, res) => res.json({ status: 'ok' }));
-// ── STT transcript log endpoint ──
-const transcriptLogs = [];
-global.logTranscript = (callSid, transcript, state) => {
-  transcriptLogs.push({
-    time: new Date().toISOString(),
-    callSid: callSid?.slice(-8),
-    state,
-    transcript,
+ app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+// ── Call logs ──
+const callLogs = [];
+global.logEvent = (callSid, type, message, extra = '') => {
+  callLogs.push({
+    time: new Date().toLocaleTimeString('de-DE'),
+    callSid: callSid ? callSid.slice(-6) : '------',
+    type,
+    message,
+    extra: extra || undefined,
   });
-  if (transcriptLogs.length > 200) transcriptLogs.shift();
+  if (callLogs.length > 500) callLogs.shift();
 };
 
 app.get('/stt-logs', (req, res) => {
-  res.json({ total: transcriptLogs.length, logs: transcriptLogs });
+  if (!callLogs.length) {
+    return res.send('<h2>No calls yet</h2>');
+  }
+
+  // Group by callSid
+  const grouped = {};
+  for (const log of callLogs) {
+    if (!grouped[log.callSid]) grouped[log.callSid] = [];
+    grouped[log.callSid].push(log);
+  }
+
+  let html = `
+    <html><head><meta charset="utf-8">
+    <title>Call Logs</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+      h1 { color: #333; }
+      .call { background: white; border-radius: 8px; padding: 16px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+      .call-header { font-weight: bold; font-size: 16px; color: #444; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+      .log { padding: 6px 0; border-bottom: 1px solid #f0f0f0; display: flex; gap: 12px; }
+      .time { color: #999; font-size: 12px; min-width: 70px; }
+      .type-STT { color: #2196F3; font-weight: bold; }
+      .type-BOT { color: #4CAF50; font-weight: bold; }
+      .type-STATE { color: #FF9800; font-weight: bold; }
+      .type-ERROR { color: #f44336; font-weight: bold; }
+      .type-INFO { color: #9C27B0; font-weight: bold; }
+      .msg { flex: 1; }
+      .extra { color: #888; font-size: 12px; }
+      .refresh { margin-bottom: 16px; }
+      button { padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+    </head><body>
+    <h1>📞 Call Logs</h1>
+    <div class="refresh"><button onclick="location.reload()">↻ Refresh</button></div>
+  `;
+
+  for (const [sid, logs] of Object.entries(grouped).reverse()) {
+    const first = logs[0];
+    html += `<div class="call">
+      <div class="call-header">📱 Call ...${sid} — started ${first.time}</div>`;
+    for (const log of logs) {
+      html += `<div class="log">
+        <span class="time">${log.time}</span>
+        <span class="type-${log.type}">[${log.type}]</span>
+        <span class="msg">${log.message}</span>
+        ${log.extra ? `<span class="extra">${log.extra}</span>` : ''}
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  html += `</body></html>`;
+  res.send(html);
 });
 
   // ── ROUTE 3: Text injection for testing ──
@@ -145,7 +200,7 @@ app.get('/stt-logs', (req, res) => {
           if (processing) return;
           processing = true;
 
-          if (global.logTranscript) global.logTranscript(callSid, transcript, state?.state);
+          if (global.logEvent) global.logEvent(callSid, 'STT', `Customer said: "${transcript}"`, `State: ${state?.state}`);
 
           if (/\b(auf wiedersehen|tschüss|tschüs|goodbye|bye)\b/i.test(transcript)) {
             await sendVoiceResponse('Auf Wiedersehen!', callSid, language);
@@ -175,6 +230,7 @@ app.get('/stt-logs', (req, res) => {
             }
           } catch (err) {
             console.error('❌ Error in updateState:', err.message);
+            if (global.logEvent) global.logEvent(callSid, 'ERROR', `Error: ${err.message}`);
             await sendVoiceResponse(
               'Es gab einen Fehler. Bitte versuchen Sie es erneut.',
               callSid, language
@@ -209,6 +265,7 @@ app.get('/stt-logs', (req, res) => {
             startCall(callSid);
             updateCall(callSid, { language });
             console.log(`📡 New call — CallSid: ${callSid}`);
+            if (global.logEvent) global.logEvent(callSid, 'INFO', 'New call started', `Language: ${language}`);
           } else {
             const existingState = callStates.get(callSid);
             language = existingState.language || language;

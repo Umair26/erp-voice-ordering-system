@@ -609,12 +609,9 @@ async function updateState(state, transcript) {
         );
         state.state = STATES.DONE;
         if (order && order.order_created) {
-          state.lastOrder = order;
-          const spokenId = speakOrderNumberDE(order.order_id);
-          const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
-          return `Ihre Bestellung Nummer ${spokenId} wurde aufgegeben. Gesamt: ${formatPrice(totalAmount)}. Auf Wiedersehen!`;
-        }
-        // Order created but order_created flag missing
+        state.lastOrder = order;
+        return 'Ihre Bestellung wurde aufgegeben. Vielen Dank und auf Wiedersehen!';
+                }
         state.lastOrder = order;
         return 'Ihre Bestellung wurde aufgegeben. Auf Wiedersehen!';
       } catch (e) {
