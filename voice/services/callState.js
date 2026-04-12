@@ -8,12 +8,13 @@ const STATES = {
   CONFIRM: 'CONFIRM',
   DONE: 'DONE',
   OUT_OF_STOCK: 'OUT_OF_STOCK',
+  EDIT_CART: 'EDIT_CART',
 };
 
 function newCallState() {
   return {
     state: STATES.IDENTIFY,
-    language: 'EN',
+    language: 'DE',
     customer: null,
     cart: [],
     currentItem: null,
@@ -23,7 +24,6 @@ function newCallState() {
 
 function wordsToDigits(text) {
   return text
-    // German compounds first
     .replace(/\bneunundneunzig\b/gi, '99').replace(/\bachtundneunzig\b/gi, '98')
     .replace(/\bsiebenundneunzig\b/gi, '97').replace(/\bsechsundneunzig\b/gi, '96')
     .replace(/\bfünfundneunzig\b/gi, '95').replace(/\bvierundneunzig\b/gi, '94')
@@ -64,23 +64,19 @@ function wordsToDigits(text) {
     .replace(/\bfünfundzwanzig\b/gi, '25').replace(/\bvierundzwanzig\b/gi, '24')
     .replace(/\bdreiundзwanzig\b/gi, '23').replace(/\bdreiundzwanzig\b/gi, '23')
     .replace(/\bzweiundzwanzig\b/gi, '22').replace(/\beinundzwanzig\b/gi, '21')
-    // German tens
     .replace(/\bneunzig\b/gi, '90').replace(/\bachtzig\b/gi, '80')
     .replace(/\bsiebzig\b/gi, '70').replace(/\bsechzig\b/gi, '60')
     .replace(/\bfünfzig\b/gi, '50').replace(/\bvierzig\b/gi, '40')
     .replace(/\bdreißig\b/gi, '30').replace(/\bzwanzig\b/gi, '20')
-    // German teens
     .replace(/\bneunzehn\b/gi, '19').replace(/\bachtzehn\b/gi, '18')
     .replace(/\bsiebzehn\b/gi, '17').replace(/\bsechzehn\b/gi, '16')
     .replace(/\bfünfzehn\b/gi, '15').replace(/\bvierzehn\b/gi, '14')
     .replace(/\bdreizehn\b/gi, '13').replace(/\bzwölf\b/gi, '12')
     .replace(/\belf\b/gi, '11').replace(/\bzehn\b/gi, '10')
-    // German singles
     .replace(/\bnull\b/gi, '0').replace(/\beins\b/gi, '1').replace(/\beine\b/gi, '1').replace(/\bein\b/gi, '1')
     .replace(/\bzwei\b/gi, '2').replace(/\bdrei\b/gi, '3').replace(/\bvier\b/gi, '4')
     .replace(/\bfünf\b/gi, '5').replace(/\bsechs\b/gi, '6').replace(/\bsieben\b/gi, '7')
     .replace(/\bacht\b/gi, '8').replace(/\bneun\b/gi, '9')
-    // English compounds first
     .replace(/\bninety\s*nine\b/gi, '99').replace(/\bninety\s*eight\b/gi, '98')
     .replace(/\bninety\s*seven\b/gi, '97').replace(/\bninety\s*six\b/gi, '96')
     .replace(/\bninety\s*five\b/gi, '95').replace(/\bninety\s*four\b/gi, '94')
@@ -121,18 +117,15 @@ function wordsToDigits(text) {
     .replace(/\btwenty\s*five\b/gi, '25').replace(/\btwenty\s*four\b/gi, '24')
     .replace(/\btwenty\s*three\b/gi, '23').replace(/\btwenty\s*two\b/gi, '22')
     .replace(/\btwenty\s*one\b/gi, '21')
-    // English tens
     .replace(/\bninety\b/gi, '90').replace(/\beighty\b/gi, '80')
     .replace(/\bseventy\b/gi, '70').replace(/\bsixty\b/gi, '60')
     .replace(/\bfifty\b/gi, '50').replace(/\bforty\b/gi, '40')
     .replace(/\bthirty\b/gi, '30').replace(/\btwenty\b/gi, '20')
-    // English teens
     .replace(/\bnineteen\b/gi, '19').replace(/\beighteen\b/gi, '18')
     .replace(/\bseventeen\b/gi, '17').replace(/\bsixteen\b/gi, '16')
     .replace(/\bfifteen\b/gi, '15').replace(/\bfourteen\b/gi, '14')
     .replace(/\bthirteen\b/gi, '13').replace(/\btwelve\b/gi, '12')
     .replace(/\beleven\b/gi, '11').replace(/\bten\b/gi, '10')
-    // English singles
     .replace(/\bzero\b/gi, '0').replace(/\bone\b/gi, '1')
     .replace(/\btwo\b/gi, '2').replace(/\bthree\b/gi, '3')
     .replace(/\bfour\b/gi, '4').replace(/\bfive\b/gi, '5')
@@ -142,9 +135,6 @@ function wordsToDigits(text) {
 
 function wordsToNumber(text) {
   const lower = text.toLowerCase().trim().replace(/\.$/, '').trim();
-
-  // ── Single compound word parser (no spaces) ──
-  // Handles: eintausendsiebenhundertfünfundzwanzig → 1725
   let remaining = lower;
   let total = 0;
 
@@ -177,13 +167,12 @@ function wordsToNumber(text) {
     }
   }
 
-  // remove joining 'und' or 'und-'
   remaining = remaining.replace(/^und/, '').trim();
 
   const compounds = {
     'einundzwanzig':21,'zweiundzwanzig':22,'dreiundzwanzig':23,'vierundzwanzig':24,
     'fünfundzwanzig':25,'sechsundzwanzig':26,'siebenundzwanzig':27,'achtundzwanzig':28,'neunundzwanzig':29,
-    'einunddreißig':31,'zweiunddreißig':32,'dreiundreißig':33,'dreiundreißig':33,'vierunddreißig':34,
+    'einunddreißig':31,'zweiunddreißig':32,'dreiundreißig':33,'vierunddreißig':34,
     'fünfunddreißig':35,'sechsunddreißig':36,'siebenunddreißig':37,'achtunddreißig':38,'neununddreißig':39,
     'einundvierzig':41,'zweiundvierzig':42,'dreiundvierzig':43,'vierundvierzig':44,
     'fünfundvierzig':45,'sechsundvierzig':46,'siebenundvierzig':47,'achtundvierzig':48,'neunundvierzig':49,
@@ -230,7 +219,6 @@ function wordsToNumber(text) {
 
   if (total > 0) return total;
 
-  // ── Fallback: spaced words with tausend/hundert ──
   const spacedThou = lower.match(/\b(ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn)?\s*tausend\b/i);
   if (spacedThou) {
     const deOnes = {'ein':1,'zwei':2,'drei':3,'vier':4,'fünf':5,'sechs':6,'sieben':7,'acht':8,'neun':9,'zehn':10};
@@ -249,7 +237,6 @@ function wordsToNumber(text) {
     return hundreds * 100 + (remainder || 0);
   }
 
-  // ── Fallback: single words ──
   for (const [word, val] of Object.entries(compounds)) {
     if (lower.includes(word)) return val;
   }
@@ -260,7 +247,6 @@ function wordsToNumber(text) {
     if (lower.includes(word)) return val;
   }
 
-  // ── Digit fallback ──
   const numMatch = lower.match(/\d+/);
   if (numMatch) return parseInt(numMatch[0], 10);
 
@@ -269,11 +255,7 @@ function wordsToNumber(text) {
 
 function extractCustomerId(transcript) {
   let converted = wordsToDigits(transcript);
-
-  // Fix German Deepgram mishearing "C" as "ZEE", "ZE", "SEE", "SE", "TSEE"
-  converted = converted
-    .replace(/\b(zee|zeh|ze|see|se|tsee)\s*/gi, 'C ');
-
+  converted = converted.replace(/\b(zee|zeh|ze|see|se|tsee)\s*/gi, 'C ');
   console.log(`🔄 Converted: "${converted}"`);
 
   const allMatches = [...converted.matchAll(/\bc\s*(\d[\s\d]*)/gi)];
@@ -296,8 +278,6 @@ function extractCustomerId(transcript) {
 
 function extractQuantity(transcript) {
   const lower = transcript.toLowerCase().trim().replace(/\.$/, '').trim();
-
-  // "Keine" = none/zero in German — treat as invalid quantity
   if (/\bkeine?\b/i.test(lower)) return 0;
 
   const wordQty = wordsToNumber(lower);
@@ -313,24 +293,11 @@ function extractQuantity(transcript) {
   return 1;
 }
 
-function formatPrice(price, language = 'EN') {
-  const dollars = Math.floor(price);
-  const cents = Math.round((price - dollars) * 100);
-  if (language === 'DE') {
-    if (cents === 0) return `${dollars} Euro`;
-    return `${dollars} Euro und ${cents} Cent`;
-  }
-  if (cents === 0) return `${dollars} dollars`;
-  return `${dollars} dollars and ${cents} cents`;
-}
-
-function speakOrderNumber(orderId) {
-  const digits = orderId.replace('ORD-', '');
-  const digitWords = {
-    '0':'zero','1':'one','2':'two','3':'three','4':'four',
-    '5':'five','6':'six','7':'seven','8':'eight','9':'nine'
-  };
-  return digits.split('').map(d => digitWords[d] || d).join(' ');
+function formatPrice(price, language = 'DE') {
+  const euros = Math.floor(price);
+  const cents = Math.round((price - euros) * 100);
+  if (cents === 0) return `${euros} Euro`;
+  return `${euros} Euro und ${cents} Cent`;
 }
 
 function speakOrderNumberDE(orderId) {
@@ -349,9 +316,60 @@ function extractProductFromMixed(transcript) {
     .trim();
 }
 
+// ── Flexible article number extraction ──
+// Handles H/Ä/AH mishearing, spaced digits, word numbers
+function extractArticleNumberFlexible(transcript) {
+  let text = transcript.toUpperCase();
+
+  // Fix common STT mishearings of letter A
+  text = text
+    .replace(/\bH\s*(\d)/g, 'A $1')
+    .replace(/\bÄ\s*(\d)/g, 'A $1')
+    .replace(/\bAH\s*(\d)/g, 'A $1')
+    .replace(/\bHA\s*(\d)/g, 'A $1')
+    .replace(/\bEH\s*(\d)/g, 'A $1');
+
+  // Direct match A + digits (with optional spaces)
+  const directMatch = text.match(/\bA\s*(\d\s*\d?\s*\d?)\b/);
+  if (directMatch) {
+    const digits = directMatch[1].replace(/\s+/g, '');
+    const num = parseInt(digits, 10);
+    if (!isNaN(num) && num >= 1 && num <= 999) {
+      return `A${String(num).padStart(3, '0')}`;
+    }
+  }
+
+  // Convert word numbers and try again
+  const converted = wordsToDigits(transcript.toLowerCase());
+  const convertedUpper = converted.toUpperCase()
+    .replace(/\bH\s*(\d)/g, 'A $1')
+    .replace(/\bÄ\s*(\d)/g, 'A $1')
+    .replace(/\bAH\s*(\d)/g, 'A $1');
+
+  const convertedMatch = convertedUpper.match(/\bA\s*((?:\d+\s*){1,4})\b/);
+  if (convertedMatch) {
+    const digits = convertedMatch[1].replace(/\s+/g, '');
+    if (digits.length <= 4) {
+      const num = parseInt(digits, 10);
+      if (!isNaN(num) && num >= 1 && num <= 999) {
+        return `A${String(num).padStart(3, '0')}`;
+      }
+    }
+  }
+
+  return null;
+}
+
+function buildCartSummary(cart, de) {
+  return cart.map((item, index) => {
+    const title = de ? (item.item_title_DE || item.item.item_title) : item.item.item_title;
+    return `Position ${index + 1}: ${item.quantity} ${title}`;
+  }).join(', ');
+}
+
 async function updateState(state, transcript) {
   const text = transcript.toLowerCase().trim();
-  const de = state.language === 'DE' || state.customer?.language === 'DE';
+  const de = true; // Always German per client request
   console.log(`📊 State: ${state.state} | Lang: ${state.language} | Input: "${transcript}"`);
 
   // ── IDENTIFY ──
@@ -360,9 +378,7 @@ async function updateState(state, transcript) {
     console.log(`🔍 Extracted customer ID: ${customerId}`);
 
     if (!customerId) {
-      return de
-        ? 'Ich konnte Ihre Kundennummer nicht verstehen. Bitte nennen Sie Ihre Kundennummer.'
-        : 'I could not understand your customer ID. Please say your customer ID starting with C.';
+      return 'Ich konnte Ihre Kundennummer nicht verstehen. Bitte nennen Sie Ihre Kundennummer.';
     }
 
     try {
@@ -370,82 +386,86 @@ async function updateState(state, transcript) {
       if (customer && customer.found) {
         state.customer = customer;
         state.state = STATES.ORDER;
-        const isDE = state.language === 'DE';
-        return isDE
-          ? `Hallo ${customer.customer_name}. Was möchten Sie bestellen?`
-          : `Hello ${customer.customer_name}, welcome. What would you like to order today?`;
+        return `Hallo ${customer.customer_name}. Was möchten Sie bestellen?`;
       }
     } catch (e) {
       console.error('Customer lookup error:', e.message);
     }
 
-    return de
-      ? 'Kunde nicht gefunden. Bitte versuchen Sie es erneut mit Ihrer Kundennummer.'
-      : 'Customer not found. Please try again with your customer ID starting with C.';
+    return 'Kunde nicht gefunden. Bitte versuchen Sie es erneut mit Ihrer Kundennummer.';
   }
 
   // ── ORDER ──
   if (state.state === STATES.ORDER) {
-    const nothingIntent = /\b(nothing|no more|that'?s all|done|finished|nichts|das war alles|fertig|nein danke)\b/i.test(text);
+    // Cancel/done intent
+    const nothingIntent = /\b(nichts|das war alles|fertig|nein danke|nothing|done|finished)\b/i.test(text);
     if (nothingIntent) {
       if (state.cart.length > 0) {
         state.state = STATES.CONFIRM;
         const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
-        const summary = state.cart.map(i => `${i.quantity} ${de ? i.item.item_title_DE || i.item.item_title : i.item.item_title}`).join(', ');
-        return de
-          ? `Sie haben folgendes im Warenkorb: ${summary}. Gesamt: ${formatPrice(totalAmount, 'DE')}. Soll ich bestellen?`
-          : `You have ${summary} in your cart. Total is ${formatPrice(totalAmount)}. Shall I place the order?`;
+        const summary = state.cart.map(i => {
+          const title = i.item_title_DE || i.item.item_title;
+          return `${i.quantity} ${title}`;
+        }).join(', ');
+        return `Sie haben folgendes im Warenkorb: ${summary}. Gesamt: ${formatPrice(totalAmount)}. Soll ich bestellen?`;
       } else {
-        return de
-          ? 'Was möchten Sie bestellen? Bitte nennen Sie die Artikelnummer oder den Produktnamen.'
-          : 'What would you like to order? Please provide the article number or product name.';
+        return 'Was möchten Sie bestellen? Bitte nennen Sie die Artikelnummer oder den Produktnamen.';
       }
     }
 
-    const normalizedTranscript = transcript.toUpperCase()
-    .replace(/\bH\s*(\d)/g, 'A $1')
-    .replace(/\bÄ\s*(\d)/g, 'A $1')
-    .replace(/\bAH\s*(\d)/g, 'A $1');
-    const articleMatch = normalizedTranscript.match(/A\s*(\d{3})/);
+    // Cart correction intent
+    const editIntent = /\b(korrigieren|ändern|löschen|entfernen|warenkorb|liste|correction|remove|delete|edit|cart)\b/i.test(text);
+    if (editIntent && state.cart.length > 0) {
+      state.state = STATES.EDIT_CART;
+      const summary = buildCartSummary(state.cart, de);
+      return `Ihr Warenkorb: ${summary}. Welche Position möchten Sie entfernen? Sagen Sie die Positionsnummer.`;
+    }
+
+    // Try flexible article number first
+    const articleNumber = extractArticleNumberFlexible(transcript);
     let item = null;
-    if (articleMatch) {
+
+    if (articleNumber) {
+      console.log(`🎯 Flexible article match: ${articleNumber}`);
       try {
-        const result = await lookupItem(`A${articleMatch[1]}`);
+        const result = await lookupItem(articleNumber);
         if (result && result.found) item = result;
       } catch (e) {
         console.error('Item lookup error:', e.message);
       }
     }
 
+    // Keyword search fallback
     if (!item) {
       const { searchProduct } = require('./semanticSearch');
-      item = await searchProduct(transcript, de ? 'DE' : 'EN');
+      item = await searchProduct(transcript, 'DE');
     }
 
     if (item && item.found) {
       if (item.availability_status === 'Out of stock') {
-        const title = de ? (item.item_title_DE || item.item_title) : item.item_title;
+        const title = item.item_title_DE || item.item_title;
         state.state = STATES.OUT_OF_STOCK;
-        return de
-          ? `${title} ist leider nicht auf Lager. Möchten Sie etwas anderes?`
-          : `${title} is out of stock. Would you like something else?`;
+        return `${title} ist leider nicht auf Lager. Möchten Sie etwas anderes bestellen?`;
       }
       state.currentItem = item;
       state.state = STATES.QUANTITY;
-      const title = de ? (item.item_title_DE || item.item_title) : item.item_title;
-      return de
-        ? `Ich habe ${title} gefunden. Wie viele möchten Sie?`
-        : `I found ${item.item_title}. How many would you like?`;
+      const title = item.item_title_DE || item.item_title;
+      return `Ich habe ${title} gefunden. Wie viele möchten Sie?`;
     }
 
-    return de
-      ? 'Produkt nicht gefunden. Bitte nennen Sie die Artikelnummer oder den Produktnamen.'
-      : 'I could not find that product. Please provide the article number or product name.';
+    return 'Produkt nicht gefunden. Bitte nennen Sie die Artikelnummer oder den Produktnamen.';
   }
 
   // ── QUANTITY ──
   if (state.state === STATES.QUANTITY) {
     const qty = extractQuantity(transcript);
+
+    if (qty === 0) {
+      // User said "keine" — cancel this item
+      state.currentItem = null;
+      state.state = STATES.ORDER;
+      return 'Verstanden. Was möchten Sie bestellen?';
+    }
 
     if (qty > 0 && state.currentItem) {
       const totalPrice = qty * parseFloat(state.currentItem.item_price || 0);
@@ -459,102 +479,127 @@ async function updateState(state, transcript) {
       state.currentItem = null;
       state.state = STATES.ADD_MORE;
       const lastItem = state.cart[state.cart.length - 1];
-      const title = de ? (lastItem.item_title_DE || lastItem.item.item_title) : lastItem.item.item_title;
-      return de
-        ? `${qty} ${title} wurde hinzugefügt. Möchten Sie noch etwas bestellen?`
-        : `Got it, ${qty} ${lastItem.item.item_title} added. Would you like to add another item?`;
+      const title = lastItem.item_title_DE || lastItem.item.item_title;
+      return `${qty} ${title} wurde hinzugefügt. Möchten Sie noch etwas bestellen?`;
     }
 
-    return de
-      ? 'Menge nicht verstanden. Bitte sagen Sie eine Zahl.'
-      : 'I did not understand the quantity. Please say a number.';
+    return 'Menge nicht verstanden. Bitte sagen Sie eine Zahl.';
   }
 
   // ── ADD MORE ──
-  // ── ADD MORE ──
-if (state.state === STATES.ADD_MORE) {
-  const yes = /\b(yes|ja|more|add|another|other|want|sure|also|noch|weitere|mehr)\b/i.test(text);
-  const no  = /\b(no|nein|done|finished|that'?s|nothing|complete|confirm|place|order|fertig|nein danke|das war alles)\b/i.test(text);
+  if (state.state === STATES.ADD_MORE) {
+    const yes = /\b(yes|ja|more|add|another|other|want|sure|also|noch|weitere|mehr)\b/i.test(text);
+    const no  = /\b(no|nein|done|finished|that'?s|nothing|complete|confirm|place|order|fertig|nein danke|das war alles)\b/i.test(text);
 
-  if (no) {
-    state.state = STATES.CONFIRM;
-    const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
-    const summary = state.cart.map(i => {
-      const title = de ? (i.item_title_DE || i.item.item_title) : i.item.item_title;
-      return `${i.quantity} ${title}`;
-    }).join(', ');
-    return de
-      ? `Zusammenfassung: ${summary}. Gesamt: ${formatPrice(totalAmount, 'DE')}. Soll ich die Bestellung aufgeben?`
-      : `Your order has ${summary}. Total is ${formatPrice(totalAmount)}. Shall I place the order?`;
-  }
-
-  if (yes) {
-    const productHint = extractProductFromMixed(transcript);
-    const hasProduct = productHint.length > 3 &&
-      !/^(yes|ja|sure|ok|okay|please|add|more|another|noch|mehr)$/i.test(productHint.trim());
-
-    state.state = STATES.ORDER;
-
-    if (hasProduct) {
-      return await updateState(state, productHint);
+    // Cart edit in ADD_MORE
+    const editIntent = /\b(korrigieren|ändern|löschen|entfernen|warenkorb|liste|correction|remove|delete|edit|cart)\b/i.test(text);
+    if (editIntent && state.cart.length > 0) {
+      state.state = STATES.EDIT_CART;
+      const summary = buildCartSummary(state.cart, de);
+      return `Ihr Warenkorb: ${summary}. Welche Position möchten Sie entfernen? Sagen Sie die Positionsnummer.`;
     }
 
-    return de ? 'Was möchten Sie noch bestellen?' : 'What else would you like to order?';
-  }
+    if (no) {
+      state.state = STATES.CONFIRM;
+      const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
+      const summary = state.cart.map(i => {
+        const title = i.item_title_DE || i.item.item_title;
+        return `${i.quantity} ${title}`;
+      }).join(', ');
+      return `Zusammenfassung: ${summary}. Gesamt: ${formatPrice(totalAmount)}. Soll ich die Bestellung aufgeben?`;
+    }
 
-  // ── DIRECT PRODUCT IN ADD_MORE ──
-  // Customer skipped yes/no and said product name or article number directly
-  // e.g. "Klemmleiste 12-polig" or "A016" or "Zwölf Klemmleisten"
-  const { searchProduct } = require('./semanticSearch');
+    if (yes) {
+      const productHint = extractProductFromMixed(transcript);
+      const hasProduct = productHint.length > 3 &&
+        !/^(yes|ja|sure|ok|okay|please|add|more|another|noch|mehr)$/i.test(productHint.trim());
 
-  // Check article number first
-  const normalizedDirect = transcript.toUpperCase()
-    .replace(/\bH\s*(\d)/g, 'A $1')
-    .replace(/\bÄ\s*(\d)/g, 'A $1')
-    .replace(/\bAH\s*(\d)/g, 'A $1');
-  const directArticleMatch = normalizedDirect.match(/A\s*(\d{3})/);
+      state.state = STATES.ORDER;
 
-  if (directArticleMatch) {
-    // Looks like an article number — go straight to ORDER
-    state.state = STATES.ORDER;
-    return await updateState(state, transcript);
-  }
-
-  // Check if it looks like a product name (more than 3 chars, not just filler)
-  const productHint = extractProductFromMixed(transcript);
-  const looksLikeProduct = productHint.length > 3 &&
-    !/^(ja|nein|yes|no|ok|okay|bitte|danke|mehr|noch|fertig|nein danke|klar|natürlich|sicher)$/i.test(productHint.trim());
-
-  if (looksLikeProduct) {
-    // Try to look it up directly — if found go to QUANTITY, if not ask what they want
-    const directItem = await searchProduct(transcript, de ? 'DE' : 'EN');
-    if (directItem && directItem.found) {
-      if (directItem.availability_status === 'Out of stock') {
-        const title = de ? (directItem.item_title_DE || directItem.item_title) : directItem.item_title;
-        state.state = STATES.OUT_OF_STOCK;
-        return de
-          ? `${title} ist leider nicht auf Lager. Möchten Sie etwas anderes?`
-          : `${title} is out of stock. Would you like something else?`;
+      if (hasProduct) {
+        return await updateState(state, productHint);
       }
-      state.currentItem = directItem;
-      state.state = STATES.QUANTITY;
-      const title = de ? (directItem.item_title_DE || directItem.item_title) : directItem.item_title;
-      return de
-        ? `Ich habe ${title} gefunden. Wie viele möchten Sie?`
-        : `I found ${directItem.item_title}. How many would you like?`;
+
+      return 'Was möchten Sie noch bestellen?';
     }
 
-    // Product not found — switch to ORDER and ask
-    state.state = STATES.ORDER;
-    return await updateState(state, transcript);
+    // Direct product name or article number in ADD_MORE
+    const { searchProduct } = require('./semanticSearch');
+    const directArticle = extractArticleNumberFlexible(transcript);
+
+    if (directArticle) {
+      state.state = STATES.ORDER;
+      return await updateState(state, transcript);
+    }
+
+    const productHint = extractProductFromMixed(transcript);
+    const looksLikeProduct = productHint.length > 3 &&
+      !/^(ja|nein|yes|no|ok|okay|bitte|danke|mehr|noch|fertig|nein danke|klar|natürlich|sicher)$/i.test(productHint.trim());
+
+    if (looksLikeProduct) {
+      const directItem = await searchProduct(transcript, 'DE');
+      if (directItem && directItem.found) {
+        if (directItem.availability_status === 'Out of stock') {
+          const title = directItem.item_title_DE || directItem.item_title;
+          state.state = STATES.OUT_OF_STOCK;
+          return `${title} ist leider nicht auf Lager. Möchten Sie etwas anderes?`;
+        }
+        state.currentItem = directItem;
+        state.state = STATES.QUANTITY;
+        const title = directItem.item_title_DE || directItem.item_title;
+        return `Ich habe ${title} gefunden. Wie viele möchten Sie?`;
+      }
+      state.state = STATES.ORDER;
+      return await updateState(state, transcript);
+    }
+
+    return 'Bitte sagen Sie Ja oder Nein.';
   }
 
-  return de ? 'Bitte sagen Sie Ja oder Nein.' : 'Please say yes or no.';
-}
+  // ── EDIT CART ──
+  if (state.state === STATES.EDIT_CART) {
+    // User says "alles löschen" or "alles entfernen" → clear entire cart
+    const clearAll = /\b(alles|alle|komplett|gesamt|everything|all)\b/i.test(text);
+    if (clearAll) {
+      state.cart = [];
+      state.state = STATES.ORDER;
+      return 'Warenkorb wurde geleert. Was möchten Sie bestellen?';
+    }
+
+    // Extract position number
+    const posNum = wordsToNumber(transcript) || extractQuantity(transcript);
+    if (posNum && posNum >= 1 && posNum <= state.cart.length) {
+      const removed = state.cart.splice(posNum - 1, 1)[0];
+      const title = removed.item_title_DE || removed.item.item_title;
+
+      if (state.cart.length === 0) {
+        state.state = STATES.ORDER;
+        return `${title} wurde entfernt. Warenkorb ist leer. Was möchten Sie bestellen?`;
+      }
+
+      state.state = STATES.ADD_MORE;
+      const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
+      const summary = buildCartSummary(state.cart, de);
+      return `${title} wurde entfernt. Verbleibender Warenkorb: ${summary}. Gesamt: ${formatPrice(totalAmount)}. Möchten Sie noch etwas bestellen?`;
+    }
+
+    // Show cart again if confused
+    const summary = buildCartSummary(state.cart, de);
+    return `Bitte sagen Sie die Positionsnummer. Ihr Warenkorb: ${summary}.`;
+  }
+
   // ── CONFIRM ──
   if (state.state === STATES.CONFIRM) {
     const yes = /\b(yes|ja|correct|confirm|proceed|go|ok|okay|place|sure|bestellen|ja bitte|jawohl)\b/i.test(text);
     const no  = /\b(no|nein|cancel|back|change|modify|abbrechen|ändern)\b/i.test(text);
+
+    // Cart edit from CONFIRM
+    const editIntent = /\b(korrigieren|ändern|löschen|entfernen|warenkorb|correction|remove|delete|edit)\b/i.test(text);
+    if (editIntent && state.cart.length > 0) {
+      state.state = STATES.EDIT_CART;
+      const summary = buildCartSummary(state.cart, de);
+      return `Ihr Warenkorb: ${summary}. Welche Position möchten Sie entfernen?`;
+    }
 
     if (yes) {
       try {
@@ -563,31 +608,28 @@ if (state.state === STATES.ADD_MORE) {
           state.cart.map(i => ({ article_number: i.article_number, quantity: i.quantity }))
         );
         state.state = STATES.DONE;
-        if (order.order_created) {
+        if (order && order.order_created) {
           state.lastOrder = order;
+          const spokenId = speakOrderNumberDE(order.order_id);
           const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
-          const spokenId = de ? speakOrderNumberDE(order.order_id) : speakOrderNumber(order.order_id);
-          return de
-            ? 'Auf Wiedersehen!'
-            : 'Thank you for calling. Goodbye!';
+          return `Ihre Bestellung Nummer ${spokenId} wurde aufgegeben. Gesamt: ${formatPrice(totalAmount)}. Auf Wiedersehen!`;
         }
+        // Order created but order_created flag missing
+        state.lastOrder = order;
+        return 'Ihre Bestellung wurde aufgegeben. Auf Wiedersehen!';
       } catch (e) {
         console.error('Order error:', e.message);
       }
-      return de
-        ? 'Es tut uns leid, es gab einen Fehler. Auf Wiedersehen!'
-        : 'Sorry, there was an error placing your order. Thank you, goodbye!';
+      return 'Es tut uns leid, es gab einen Fehler. Auf Wiedersehen!';
     }
 
     if (no) {
       state.state = STATES.ORDER;
       state.cart = [];
-      return de
-        ? 'Kein Problem. Was möchten Sie bestellen?'
-        : 'No problem. What would you like to order?';
+      return 'Kein Problem. Was möchten Sie bestellen?';
     }
 
-    return de ? 'Bitte sagen Sie Ja oder Nein.' : 'Please say yes oder no.';
+    return 'Bitte sagen Sie Ja zum Bestellen oder Nein zum Abbrechen.';
   }
 
   // ── OUT OF STOCK ──
@@ -597,9 +639,7 @@ if (state.state === STATES.ADD_MORE) {
 
     if (yes) {
       state.state = STATES.ORDER;
-      return de
-        ? 'Was möchten Sie bestellen? Bitte nennen Sie die Artikelnummer oder den Produktnamen.'
-        : 'What would you like to order? Please provide the article number or product name.';
+      return 'Was möchten Sie bestellen? Bitte nennen Sie die Artikelnummer oder den Produktnamen.';
     }
 
     if (no) {
@@ -607,26 +647,22 @@ if (state.state === STATES.ADD_MORE) {
         state.state = STATES.CONFIRM;
         const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
         const summary = state.cart.map(i => {
-          const title = de ? (i.item_title_DE || i.item.item_title) : i.item.item_title;
+          const title = i.item_title_DE || i.item.item_title;
           return `${i.quantity} ${title}`;
         }).join(', ');
-        return de
-          ? `Zusammenfassung: ${summary}. Gesamt: ${formatPrice(totalAmount, 'DE')}. Soll ich die Bestellung aufgeben?`
-          : `Your order has ${summary}. Total is ${formatPrice(totalAmount)}. Shall I place the order?`;
+        return `Zusammenfassung: ${summary}. Gesamt: ${formatPrice(totalAmount)}. Soll ich die Bestellung aufgeben?`;
       } else {
         state.state = STATES.DONE;
-        return de ? 'Auf Wiedersehen!' : 'Thank you. Goodbye!';
+        return 'Auf Wiedersehen!';
       }
     }
 
-    return de
-      ? 'Möchten Sie etwas anderes bestellen? Bitte sagen Sie Ja oder Nein.'
-      : 'Would you like to order something else? Please say yes or no.';
+    return 'Möchten Sie etwas anderes bestellen? Bitte sagen Sie Ja oder Nein.';
   }
 
   // ── DONE ──
   if (state.state === STATES.DONE) {
-    return de ? 'Ihre Sitzung ist beendet. Auf Wiedersehen.' : 'Your session has ended. Goodbye.';
+    return 'Ihre Sitzung ist beendet. Auf Wiedersehen.';
   }
 
   return null;
