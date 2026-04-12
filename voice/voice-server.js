@@ -26,7 +26,7 @@ function isFinalMessage(text) {
 async function sendVoiceResponse(text, callSid, language = 'DE') {
   try {
     console.log(`🔊 Response [${language}]: "${text}"`);
-    if (global.logEvent) global.logEvent(null, 'BOT', `Bot said: "${text}"`);
+  
     const domain = process.env.DOMAIN;
     const voice = getTwilioVoice(language);
     const final = isFinalMessage(text);
@@ -155,7 +155,8 @@ app.get('/stt-logs', (req, res) => {
 
     try {
       const response = await updateState(state, text);
-
+      if (global.logEvent) global.logEvent(callSid, 'STT', `Input: "${text}"`, `State: ${state?.state}`);
+      if (global.logEvent && response) global.logEvent(callSid, 'BOT', `Bot: "${response}"`, `New state: ${state?.state}`);
       if (state.customer && callSid) {
         updateCall(callSid, { customer: state.customer.customer_name });
       }
@@ -200,6 +201,7 @@ app.get('/stt-logs', (req, res) => {
           if (processing) return;
           processing = true;
 
+          console.log(`🎤 Transcript: "${transcript}"`);
           if (global.logEvent) global.logEvent(callSid, 'STT', `Customer said: "${transcript}"`, `State: ${state?.state}`);
 
           if (/\b(auf wiedersehen|tschüss|tschüs|goodbye|bye)\b/i.test(transcript)) {
@@ -210,7 +212,7 @@ app.get('/stt-logs', (req, res) => {
 
           try {
             const response = await updateState(state, transcript);
-
+            if (global.logEvent && response) global.logEvent(callSid, 'BOT', `Bot said: "${response}"`, `New state: ${state?.state}`);
             if (state.customer && callSid) {
               updateCall(callSid, { customer: state.customer.customer_name });
             }
