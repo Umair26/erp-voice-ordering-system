@@ -9,6 +9,7 @@ const STATES = {
   DONE: 'DONE',
   OUT_OF_STOCK: 'OUT_OF_STOCK',
   EDIT_CART: 'EDIT_CART',
+  ITEM_CONFIRM: 'ITEM_CONFIRM', // ← add this
 };
 
 function newCallState() {
@@ -139,12 +140,15 @@ function wordsToNumber(text) {
   let total = 0;
 
   const thousandPrefixes = {
-    'zehntausend': 10000,
-    'neuntausend': 9000, 'achttausend': 8000, 'siebentausend': 7000,
-    'sechstausend': 6000, 'fünftausend': 5000, 'viertausend': 4000,
-    'dreitausend': 3000, 'zweitausend': 2000, 'eintausend': 1000,
-    'tausend': 1000,
-  };
+  'neunzehntausend': 19000, 'achtzehntausend': 18000, 'siebzehntausend': 17000,
+  'sechzehntausend': 16000, 'fünfzehntausend': 15000, 'vierzehntausend': 14000,
+  'dreizehntausend': 13000, 'zwölftausend': 12000, 'elftausend': 11000,
+  'zehntausend': 10000,
+  'neuntausend': 9000, 'achttausend': 8000, 'siebentausend': 7000,
+  'sechstausend': 6000, 'fünftausend': 5000, 'viertausend': 4000,
+  'dreitausend': 3000, 'zweitausend': 2000, 'eintausend': 1000,
+  'tausend': 1000,
+};
   for (const [word, val] of Object.entries(thousandPrefixes)) {
     if (remaining.startsWith(word)) {
       total += val;
@@ -319,25 +323,50 @@ function extractProductFromMixed(transcript) {
 // ── Flexible article number extraction ──
 // Handles H/Ä/AH mishearing, spaced digits, word numbers
 function extractArticleNumberFlexible(transcript) {
-  let text = transcript.toUpperCase();
+  let text = transcript.toLowerCase().trim();
 
-  // Fix common STT mishearings of letter A
-  text = text
+  // Remove filler words
+  text = text.replace(/\bartikel\b/gi, '').replace(/\bnummer\b/gi, '').trim();
+
+  // Convert word numbers to digits first
+  let converted = wordsToDigits(text);
+
+  // Fix STT mishearings of letter A
+  converted = converted.toUpperCase()
     .replace(/\bH\s*(\d)/g, 'A $1')
     .replace(/\bÄ\s*(\d)/g, 'A $1')
     .replace(/\bAH\s*(\d)/g, 'A $1')
     .replace(/\bHA\s*(\d)/g, 'A $1')
     .replace(/\bEH\s*(\d)/g, 'A $1');
 
-  // Direct match A + digits (with optional spaces)
-  const directMatch = text.match(/\bA\s*(\d\s*\d?\s*\d?)\b/);
-  if (directMatch) {
-    const digits = directMatch[1].replace(/\s+/g, '');
-    const num = parseInt(digits, 10);
-    if (!isNaN(num) && num >= 1 && num <= 999) {
+  console.log(`🎯 Article extraction from: "${converted}"`);
+
+  // Match A + digits (spaced or not, up to 4 digits)
+  const matchA = converted.match(/\bA\s*((?:\d+\s*){1,4})\b/);
+  if (matchA) {
+    const digits = matchA[1].replace(/\s+/g, '');
+    if (digits.length <= 4) {
+      const num = parseInt(digits, 10);
+      if (!isNaN(num) && num >= 1 && num <= 999) {
+        return `A${String(num).padStart(3, '0')}`;
+      }
+    }
+  }
+
+  // ── KEY FIX: bare number = article number ──
+  // "zehn" → 10 → A010
+  // "Artikel zehn" → 10 → A010
+  // "A zehn" → A 10 → A010
+  const bareNumber = converted.match(/^\s*(\d+)\s*$/);
+  if (bareNumber) {
+    const num = parseInt(bareNumber[1], 10);
+    if (num >= 1 && num <= 999) {
       return `A${String(num).padStart(3, '0')}`;
     }
   }
+
+  return null;
+}
 
   // Convert word numbers and try again
   const converted = wordsToDigits(transcript.toLowerCase());
@@ -442,16 +471,16 @@ async function updateState(state, transcript) {
     }
 
     if (item && item.found) {
-      if (item.availability_status === 'Out of stock') {
-        const title = item.item_title_DE || item.item_title;
-        state.state = STATES.OUT_OF_STOCK;
-        return `${title} ist leider nicht auf Lager. Möchten Sie etwas anderes bestellen?`;
-      }
-      state.currentItem = item;
-      state.state = STATES.QUANTITY;
-      const title = item.item_title_DE || item.item_title;
-      return `Ich habe ${title} gefunden. Wie viele möchten Sie?`;
-    }
+  if (item.availability_status === 'Out of stock') {
+    const title = item.item_title_DE || item.item_title;
+    state.state = STATES.OUT_OF_STOCK;
+    return `${title} ist leider nicht auf Lager. Möchten Sie etwas anderes bestellen?`;
+  }
+  state.currentItem = item;
+  state.state = STATES.ITEM_CONFIRM;
+  const title = item.item_title_DE || item.item_title;
+  return `Sie haben ${title} ausgewählt. Möchten Sie diesen Artikel bestellen? Ja oder Nein.`;
+}
 
     return 'Produkt nicht gefunden. Bitte nennen Sie die Artikelnummer oder den Produktnamen.';
   }
@@ -539,16 +568,16 @@ async function updateState(state, transcript) {
     if (looksLikeProduct) {
       const directItem = await searchProduct(transcript, 'DE');
       if (directItem && directItem.found) {
-        if (directItem.availability_status === 'Out of stock') {
-          const title = directItem.item_title_DE || directItem.item_title;
-          state.state = STATES.OUT_OF_STOCK;
-          return `${title} ist leider nicht auf Lager. Möchten Sie etwas anderes?`;
-        }
-        state.currentItem = directItem;
-        state.state = STATES.QUANTITY;
-        const title = directItem.item_title_DE || directItem.item_title;
-        return `Ich habe ${title} gefunden. Wie viele möchten Sie?`;
-      }
+  if (directItem.availability_status === 'Out of stock') {
+    const title = directItem.item_title_DE || directItem.item_title;
+    state.state = STATES.OUT_OF_STOCK;
+    return `${title} ist leider nicht auf Lager. Möchten Sie etwas anderes?`;
+  }
+  state.currentItem = directItem;
+  state.state = STATES.ITEM_CONFIRM;
+  const title = directItem.item_title_DE || directItem.item_title;
+  return `Sie haben ${title} ausgewählt. Möchten Sie diesen Artikel bestellen? Ja oder Nein.`;
+}
       state.state = STATES.ORDER;
       return await updateState(state, transcript);
     }
@@ -589,6 +618,27 @@ async function updateState(state, transcript) {
   }
 
   // ── CONFIRM ──
+  // ── ITEM CONFIRM ──
+if (state.state === STATES.ITEM_CONFIRM) {
+  const yes = /\b(ja|yes|ok|okay|sure|klar|bitte|gerne|jawohl|natürlich)\b/i.test(text);
+  const no  = /\b(nein|no|falsch|nicht|cancel|abbrechen|stop)\b/i.test(text);
+
+  if (yes) {
+    state.state = STATES.QUANTITY;
+    const title = state.currentItem.item_title_DE || state.currentItem.item_title;
+    return `Wie viele ${title} möchten Sie?`;
+  }
+
+  if (no) {
+    state.currentItem = null;
+    state.state = STATES.ORDER;
+    return 'Kein Problem. Bitte nennen Sie die Artikelnummer oder den Produktnamen.';
+  }
+
+  const title = state.currentItem?.item_title_DE || state.currentItem?.item_title;
+  return `Bitte sagen Sie Ja um ${title} zu bestellen, oder Nein um einen anderen Artikel zu wählen.`;
+}
+
   if (state.state === STATES.CONFIRM) {
     const yes = /\b(yes|ja|correct|confirm|proceed|go|ok|okay|place|sure|bestellen|ja bitte|jawohl)\b/i.test(text);
     const no  = /\b(no|nein|cancel|back|change|modify|abbrechen|ändern)\b/i.test(text);
