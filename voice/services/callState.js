@@ -321,7 +321,7 @@ function extractProductFromMixed(transcript) {
 }
 
 // ── Flexible article number extraction ──
-// Handles H/Ä/AH mishearing, spaced digits, word numbers
+
 function extractArticleNumberFlexible(transcript) {
   let text = transcript.toLowerCase().trim();
 
@@ -353,10 +353,8 @@ function extractArticleNumberFlexible(transcript) {
     }
   }
 
-  // ── KEY FIX: bare number = article number ──
-  // "zehn" → 10 → A010
-  // "Artikel zehn" → 10 → A010
-  // "A zehn" → A 10 → A010
+  // Bare number only = treat as article number
+  // "zehn" → 10 → A010, "Artikel zehn" → A010
   const bareNumber = converted.match(/^\s*(\d+)\s*$/);
   if (bareNumber) {
     const num = parseInt(bareNumber[1], 10);
@@ -368,26 +366,6 @@ function extractArticleNumberFlexible(transcript) {
   return null;
 }
 
-  // Convert word numbers and try again
-  const converted = wordsToDigits(transcript.toLowerCase());
-  const convertedUpper = converted.toUpperCase()
-    .replace(/\bH\s*(\d)/g, 'A $1')
-    .replace(/\bÄ\s*(\d)/g, 'A $1')
-    .replace(/\bAH\s*(\d)/g, 'A $1');
-
-  const convertedMatch = convertedUpper.match(/\bA\s*((?:\d+\s*){1,4})\b/);
-  if (convertedMatch) {
-    const digits = convertedMatch[1].replace(/\s+/g, '');
-    if (digits.length <= 4) {
-      const num = parseInt(digits, 10);
-      if (!isNaN(num) && num >= 1 && num <= 999) {
-        return `A${String(num).padStart(3, '0')}`;
-      }
-    }
-  }
-
-  return null;
-}
 
 function buildCartSummary(cart, de) {
   return cart.map((item, index) => {
