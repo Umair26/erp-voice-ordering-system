@@ -6,7 +6,7 @@ router.post('/', (req, res) => {
   const domain = process.env.DOMAIN;
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Vicki-Neural">Willkommen beim Bestellsystem. Bitte nennen Sie Ihre Kundennummer.</Say>
+  <Say voice="Polly.Vicki-Neural">Hallo, bitte stellen Sie Ihre Kundennummer bereit, um fortzufahren.</Say>
   <Connect>
     <Stream url="wss://${domain}/audio-stream">
       <Parameter name="language" value="DE"/>

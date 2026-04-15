@@ -259,22 +259,19 @@ function wordsToNumber(text) {
 
 function extractCustomerId(transcript) {
   let converted = wordsToDigits(transcript);
-  converted = converted.replace(/\b(zee|zeh|ze|see|se|tsee)\s*/gi, 'C ');
+
+  // Remove C/ZEE prefix — customer now says numbers only e.g. "null null sieben" → C007
+  converted = converted
+    .replace(/\b(zee|zeh|ze|see|se|tsee|c)\s*/gi, '')
+    .trim();
+
   console.log(`🔄 Converted: "${converted}"`);
 
-  const allMatches = [...converted.matchAll(/\bc\s*(\d[\s\d]*)/gi)];
-  if (allMatches.length > 0) {
-    const lastMatch = allMatches[allMatches.length - 1];
-    const digits = lastMatch[1].replace(/\s+/g, '').slice(0, 3).padStart(3, '0');
-    const id = `C${digits}`;
-    if (id !== 'C000') return id;
-  }
-
-  const numMatch = converted.match(/(?<![a-zA-Z])(\d\s*\d\s*\d|\d\s*\d|\d)(?!\s*\d)/);
+  // Match 1-3 digit number
+  const numMatch = converted.match(/(\d[\s\d]{0,4})/);
   if (numMatch) {
-    const digits = numMatch[1].replace(/\s+/g, '').padStart(3, '0').slice(0, 3);
-    const id = `C${digits}`;
-    if (id !== 'C000') return id;
+    const digits = numMatch[1].replace(/\s+/g, '').slice(0, 3).padStart(3, '0');
+    if (digits !== '000') return digits;
   }
 
   return null;
@@ -325,10 +322,14 @@ function extractProductFromMixed(transcript) {
 function extractArticleNumberFlexible(transcript) {
   let text = transcript.toLowerCase().trim();
 
-  // Remove filler words
-  text = text.replace(/\bartikel\b/gi, '').replace(/\bnummer\b/gi, '').trim();
+  // Remove filler words including 'a', 'artikel', 'nummer', 'article'
+  text = text
+    .replace(/\bartikel\b/gi, '')
+    .replace(/\bnummer\b/gi, '')
+    .replace(/\barticle\b/gi, '')
+    .trim();
 
-  // Convert word numbers to digits first
+  // Convert word numbers to digits
   let converted = wordsToDigits(text);
 
   // Fix STT mishearings of letter A
@@ -341,25 +342,29 @@ function extractArticleNumberFlexible(transcript) {
 
   console.log(`🎯 Article extraction from: "${converted}"`);
 
-  // Match A + digits (spaced or not, up to 4 digits)
+  // Match A + digits (spaced or not)
   const matchA = converted.match(/\bA\s*((?:\d+\s*){1,4})\b/);
   if (matchA) {
     const digits = matchA[1].replace(/\s+/g, '');
     if (digits.length <= 4) {
       const num = parseInt(digits, 10);
       if (!isNaN(num) && num >= 1 && num <= 999) {
-        return `A${String(num).padStart(3, '0')}`;
+        return String(num).padStart(3, '0');
       }
     }
   }
 
-  // Bare number only = treat as article number
-  // "zehn" → 10 → A010, "Artikel zehn" → A010
-  const bareNumber = converted.match(/^\s*(\d+)\s*$/);
-  if (bareNumber) {
-    const num = parseInt(bareNumber[1], 10);
-    if (num >= 1 && num <= 999) {
-      return `A${String(num).padStart(3, '0')}`;
+  // ── Numeric only: "zehn" → A010, "null fünfzehn" → A015 ──
+  // Strip all non-digit characters after conversion and try as article number
+  const digitsOnly = converted.replace(/[^0-9\s]/g, '').trim();
+  const bareMatch = digitsOnly.match(/^(\d[\s\d]{0,3})$/);
+  if (bareMatch) {
+    const digits = bareMatch[1].replace(/\s+/g, '');
+    if (digits.length <= 3) {
+      const num = parseInt(digits, 10);
+      if (!isNaN(num) && num >= 1 && num <= 999) {
+        return `A${String(num).padStart(3, '0')}`;
+      }
     }
   }
 
@@ -385,7 +390,7 @@ async function updateState(state, transcript) {
     console.log(`🔍 Extracted customer ID: ${customerId}`);
 
     if (!customerId) {
-      return 'Ich konnte Ihre Kundennummer nicht verstehen. Bitte nennen Sie Ihre Kundennummer.';
+      return 'Ich konnte Ihre Kundennummer nicht verstehen. Bitte nennen Sie Ihre dreistellige Kundennummer, zum Beispiel null null sieben.';
     }
 
     try {
@@ -495,8 +500,8 @@ async function updateState(state, transcript) {
 
   // ── ADD MORE ──
   if (state.state === STATES.ADD_MORE) {
-    const yes = /\b(yes|ja|more|add|another|other|want|sure|also|noch|weitere|mehr)\b/i.test(text);
-    const no  = /\b(no|nein|done|finished|that'?s|nothing|complete|confirm|place|order|fertig|nein danke|das war alles)\b/i.test(text);
+    const yes = /\b(yes|ja|more|add|another|other|want|sure|also|noch|weitere|mehr|weiter)\b/i.test(text);
+    const no  = /\b(no|nein|done|finished|that'?s|nothing|complete|confirm|place|order|fertig|nein danke|das war alles|beenden|ende|tschüss|tschüs|auf wiedersehen)\b/i.test(text);
 
     // Cart edit in ADD_MORE
     const editIntent = /\b(korrigieren|ändern|löschen|entfernen|warenkorb|liste|correction|remove|delete|edit|cart)\b/i.test(text);
@@ -507,13 +512,13 @@ async function updateState(state, transcript) {
     }
 
     if (no) {
-      state.state = STATES.CONFIRM;
-      const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
-      const summary = state.cart.map(i => {
-        const title = i.item_title_DE || i.item.item_title;
-        return `${i.quantity} ${title}`;
-      }).join(', ');
-      return `Zusammenfassung: ${summary}. Gesamt: ${formatPrice(totalAmount)}. Soll ich die Bestellung aufgeben?`;
+    state.state = STATES.CONFIRM;
+    const totalAmount = state.cart.reduce((sum, i) => sum + i.total_price, 0);
+    const summary = state.cart.map(i => {
+      const title = i.item_title_DE || i.item.item_title;
+      return `${i.quantity} ${title}`;
+    }).join(', ');
+    return `Zusammenfassung: ${summary}. Gesamt: ${formatPrice(totalAmount)}. Soll ich die Bestellung aufgeben? Sagen Sie Ja zum Bestellen oder Nein zum Abbrechen.`;
     }
 
     if (yes) {
@@ -527,7 +532,7 @@ async function updateState(state, transcript) {
         return await updateState(state, productHint);
       }
 
-      return 'Was möchten Sie noch bestellen?';
+      return 'Möchten Sie noch etwas bestellen? Sagen Sie weiter für weitere Artikel oder beenden um das Gespräch zu beenden.';
     }
 
     // Direct product name or article number in ADD_MORE
