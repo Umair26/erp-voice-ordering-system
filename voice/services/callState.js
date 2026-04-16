@@ -500,8 +500,8 @@ async function updateState(state, transcript) {
 
   // ── ADD MORE ──
   if (state.state === STATES.ADD_MORE) {
-    const yes = /\b(yes|ja|more|add|another|other|want|sure|also|noch|weitere|mehr|weiter)\b/i.test(text);
-    const no  = /\b(no|nein|done|finished|that'?s|nothing|complete|confirm|place|order|fertig|nein danke|das war alles|beenden|ende|tschüss|tschüs|auf wiedersehen)\b/i.test(text);
+    const yes = /\b(ja|mehr|weiter|weitere|noch|fortfahren|weitermachen|bitte|gerne|natürlich|klar)\b/i.test(text);
+    const no  = /\b(nein|fertig|nein danke|das war alles|beenden|ende|tschüss|tschüs|auf wiedersehen)\b/i.test(text);
 
     // Cart edit in ADD_MORE
     const editIntent = /\b(korrigieren|ändern|löschen|entfernen|warenkorb|liste|correction|remove|delete|edit|cart)\b/i.test(text);
@@ -532,7 +532,7 @@ async function updateState(state, transcript) {
         return await updateState(state, productHint);
       }
 
-      return 'Möchten Sie noch etwas bestellen? Sagen Sie weiter für weitere Artikel oder beenden um das Gespräch zu beenden.';
+      return 'Welchen Artikel möchten Sie bestellen?';
     }
 
     // Direct product name or article number in ADD_MORE
